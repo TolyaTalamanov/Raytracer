@@ -7,14 +7,18 @@
 class Tokenizer {
 public:
     struct Constant {
-        float val;
+        double val;
     };
 
     struct Word {
         std::string word;
     };
 
-    using Token = std::variant<Constant, Word>;
+    struct Slash {};
+
+    struct EndOfFile {};
+
+    using Token = std::variant<Constant, Word, Slash, EndOfFile>;
 
     Tokenizer(std::istream* in) : _in(in) {
         SkipSpaces();
@@ -35,15 +39,22 @@ public:
             return *_ltoken;
         }
 
-        // NB: Only three entities are supported: numeric constant, string, comment
         char c = _in->peek();
-        if (std::isdigit(c) || c == '-') {
-            _ltoken.reset(new Token{Constant{ParseFloat()}});
+        if (c == '/') {
+            _ltoken.reset(new Token{Slash{}});
+            // NB: Move cursor to the next symbol
+            _in->get();
+        } else if (std::isdigit(c) || c == '-') {
+            _ltoken.reset(new Token{Constant{parseDouble()}});
         } else if (c == '#') {
             ParseComment();
             Next();
-            auto token = GetToken();
-            _ltoken.reset(new Token{token});
+            if (IsEnd()) {
+                _ltoken.reset(new Token{EndOfFile{}});
+            } else {
+                auto token = GetToken();
+                _ltoken.reset(new Token{token});
+            }
         } else if (std::isalpha(c)) {
             auto word = ParseString();
             _ltoken.reset(new Token{Word{word}});
@@ -78,8 +89,8 @@ private:
         }
     }
 
-    float ParseFloat() {
-        float val;
+    double parseDouble() {
+        double val;
         (*_in) >> val;
         return val;
     }

@@ -1,9 +1,22 @@
 #pragma once
 
+#include <unordered_map>
+
 #include "builder.h"
 #include "tokenizer.h"
+#include "object.h"
 
 #include <cassert>
+
+#include <optional>
+
+std::ostream& operator<<(std::ostream& os, const PolygonInfo& pi) {
+    os << "PolygonInfo: " << std::endl;
+    for (auto&& v : pi.vertex) {
+        os << v << std::endl;
+    }
+    return os;
+}
 
 class Parser {
 public:
@@ -27,7 +40,6 @@ public:
                         throw std::logic_error("Next token after mtllib should be Tokenizer::Word");
                     }
                     auto&& filename = std::get<Tokenizer::Word>(tok).word;
-                    std::cout << "mtllib path = " << filename << std::endl;
                     ParseMtlFile(dir + "/" + filename);
                 } else if (word == "usemtl") {
                     tokenizer.Next();
@@ -37,38 +49,42 @@ public:
                     }
 
                     // Store mtl_name for object
-                    // FIXME: Should it be parsed together with object ? 
+                    // FIXME: Should it be parsed together with object ?
                     mtl_name = std::get<Tokenizer::Word>(tok).word;
                 } else if (word == "S") {
                     tokenizer.Next();
-                    auto params = ParseConstants<float, 4>(&tokenizer);
-                    std::cout << "Sphere params = " << params[0] << " " << params[1] << " " << params[2] << " " << params[3] << std::endl;
+                    auto params = ParseConstants<double, 4>(&tokenizer);
                     _builder.BuildSphere(mtl_name, params);
                 } else if (word == "v") {
-                    tokenizer.Next();                   
-                    auto coords = ParseConstants<float, 3>(&tokenizer);
-                    std::cout << "v : " << coords[0] << " " << coords[1] << " " << coords[2] << std::endl;
+                    tokenizer.Next();
+                    auto coords = ParseConstants<double, 3>(&tokenizer);
                     _builder.AddVertex(coords);
+                } else if (word == "vn") {
+                    tokenizer.Next();
+                    auto coords = ParseConstants<double, 3>(&tokenizer);
+                    _builder.AddVertexNormal(coords);
+                } else if (word == "vt") {
+                    tokenizer.Next();
+                    auto coords = ParseConstants<double, 3>(&tokenizer);
+                    // FIXME: Isn't necessary for baseline
+                    //_builder.AddVertexTexture(coords);
                 } else if (word == "f") {
-                    tokenizer.Next();                   
-                    auto params = ParseAllConstantInLine<int>(&tokenizer);
-                    std::cout << "NUM coords = " << params.size() << std::endl;
-                    _builder.BuildPolygon(mtl_name, params);
+                    tokenizer.Next();
+                    auto polygon = ParsePolygon(&tokenizer);
+                    _builder.BuildPolygon(mtl_name, polygon);
                     // FIXME: After ParseAllConstantInLine() we are already on next token,
                     // so just continue
                     continue;
                 } else if (word == "P") {
                     tokenizer.Next();
-                    auto params = ParseConstants<float, 6>(&tokenizer);
-                    std::cout << "Ligh params = " << params[0] << " " << params[1] << " " << params[2] << " " << params[3] <<  " " << params[4] << " " << params[5] << std::endl;
+                    auto params = ParseConstants<double, 6>(&tokenizer);
                     _builder.AddLight(params);
-                }
-                else {
-                    std::cout << "SKIP LINE STARTED WITH: " << word << std::endl;
+                } else {
                     tokenizer.NextLine();
                     continue;
-                    //throw std::logic_error("Unrecognized value for Tokenizer::Word in *.obj file");
                 }
+            } else if (std::holds_alternative<Tokenizer::EndOfFile>(token)) {
+                break;
             } else {
                 throw std::logic_error("Line in *.obj file shouldn't start with this token");
             }
@@ -101,7 +117,6 @@ private:
             throw std::logic_error("Next token after newmtl should be Tokenizer::Word");
         }
         std::string name = std::get<Tokenizer::Word>(tok).word;
-        std::cout << "mtl name = " << name << std::endl;
 
         // Init material
         Material mtl;
@@ -116,45 +131,49 @@ private:
                 throw std::logic_error("Unsupported option for newmtl");
             }
             auto optname = std::get<Tokenizer::Word>(tok).word;
-            std::cout << "optname = " << optname << std::endl;
 
             // NB: Go to params list
             tokenizer->Next();
 
             if (optname == "Kd") {
-                auto Kd_params = ParseConstants<float, 3>(tokenizer);
-                std::cout << optname << ": " << Kd_params[0] << " " << Kd_params[1] << " " << Kd_params[2] << std::endl;
+                auto Kd_params = ParseConstants<double, 3>(tokenizer);
                 mtl.Kd = Vec3f(Kd_params);
-            } else if(optname == "Ka") {
-                auto Ka_params = ParseConstants<float, 3>(tokenizer);
-                std::cout << optname << ": " << Ka_params[0] << " " << Ka_params[1] << " " << Ka_params[2] << std::endl;
+            } else if (optname == "Ka") {
+                auto Ka_params = ParseConstants<double, 3>(tokenizer);
                 mtl.Ka = Vec3f(Ka_params);
             } else if (optname == "Ke") {
-                auto Ke = ParseConstants<float, 3>(tokenizer);
-                std::cout << optname << ": " << Ke[0] << " " << Ke[1] << " " << Ke[2] << std::endl;
+                auto Ke = ParseConstants<double, 3>(tokenizer);
                 mtl.Ke = Vec3f(Ke);
             } else if (optname == "Ks") {
-                auto Ks_params = ParseConstants<float, 3>(tokenizer);
-                std::cout << optname << ": " << Ks_params[0] << " " << Ks_params[1] << " " << Ks_params[2] << std::endl;
+                auto Ks_params = ParseConstants<double, 3>(tokenizer);
                 mtl.Ks = Vec3f(Ks_params);
             } else if (optname == "Ns") {
-                auto Ns = ParseConstants<float, 1>(tokenizer);
-                std::cout << optname << ": " << Ns[0] << std::endl;
+                auto Ns = ParseConstants<double, 1>(tokenizer);
                 mtl.Ns = Ns[0];
             } else if (optname == "illum") {
                 auto illum = ParseConstants<int, 1>(tokenizer);
-                std::cout << optname << ": " << illum[0] << std::endl;
                 mtl.illum = illum[0];
             } else if (optname == "Ni") {
-                auto Ni = ParseConstants<float, 1>(tokenizer);
-                std::cout << optname << ": " << Ni[0] << std::endl;
+                auto Ni = ParseConstants<double, 1>(tokenizer);
                 mtl.Ni = Ni[0];
+            } else if (optname == "Tf") {
+                auto Tf = ParseConstants<double, 3>(tokenizer);
+                mtl.Tf = Vec3f(Tf);
+            } else if (optname == "d") {
+                auto d = ParseConstants<double, 1>(tokenizer);
+                mtl.d = d[0];
+                mtl.Tr = 1 - mtl.d;
+            } else if (optname == "Tr") {
+                auto Tr = ParseConstants<double, 1>(tokenizer);
+                mtl.Tr = Tr[0];
+                mtl.d = 1 - mtl.Tr;
             } else {
                 throw std::logic_error("Unsupported option name: " + optname);
             }
 
             if (tokenizer->IsEnd()) {
                 // Mtl file is over
+                mtl.name = name;
                 _builder.AddMaterial(name, mtl);
                 return;
             }
@@ -166,40 +185,86 @@ private:
 
             if (std::get<Tokenizer::Word>(tok).word == "newmtl") {
                 // New material section is started
+                mtl.name = name;
                 _builder.AddMaterial(name, mtl);
                 return;
             }
         }
     }
 
-    template<typename T, size_t N>
+    template <typename T, size_t N>
     std::array<T, N> ParseConstants(Tokenizer* tokenizer) {
         std::array<T, N> values;
         for (int i = 0; i < N; ++i) {
             auto tok = tokenizer->GetToken();
             if (!std::holds_alternative<Tokenizer::Constant>(tok)) {
-                throw std::logic_error("Param list for option should contain float constants");
+                throw std::logic_error("Param list for option should contain double constants");
             }
-            // NB: Tokenizer alway return float
+            // NB: Tokenizer alway return double
             values[i] = static_cast<T>(std::get<Tokenizer::Constant>(tok).val);
             tokenizer->Next();
         }
         return values;
     }
 
-    template<typename T>
-    std::vector<T> ParseAllConstantInLine(Tokenizer* tokenizer) {
-        std::vector<T> values;
+    TriangleVertex ParseTriangleVertex(Tokenizer* tokenizer) {
+        // Format: v/vt/vn
+        TriangleVertex tv;
+
+        // Parse v
+        auto tok = tokenizer->GetToken();
+        if (!std::holds_alternative<Tokenizer::Constant>(tok)) {
+            throw std::logic_error("Triangle vertex should contain constant in the beginning");
+        }
+        tv.v = std::get<Tokenizer::Constant>(tok).val;
+        tokenizer->Next();
+
+        tok = tokenizer->GetToken();
+        if (!std::holds_alternative<Tokenizer::Slash>(tok)) {
+            return tv;
+        }
+        tokenizer->Next();
+
+        tok = tokenizer->GetToken();
+        // Parse vt
+        if (std::holds_alternative<Tokenizer::Constant>(tok)) {
+            tv.vt = std::get<Tokenizer::Constant>(tok).val;
+            // Skip next slash
+            tokenizer->Next();
+            tok = tokenizer->GetToken();
+            if (!std::holds_alternative<Tokenizer::Slash>(tok)) {
+                throw std::logic_error("Slash should follow after number");
+            }
+        }
+        tokenizer->Next();
+
+        // Parse vn
+        tok = tokenizer->GetToken();
+        if (!std::holds_alternative<Tokenizer::Constant>(tok)) {
+            throw std::logic_error("Triangle vertex should contain constant in the ending");
+        }
+        tv.vn = std::get<Tokenizer::Constant>(tok).val;
+
+        tokenizer->Next();
+        return tv;
+    }
+
+    PolygonInfo ParsePolygon(Tokenizer* tokenizer) {
+        PolygonInfo pi;
+
         while (true) {
             auto tok = tokenizer->GetToken();
             if (!std::holds_alternative<Tokenizer::Constant>(tok)) {
-                return values;
+                return pi;
             }
-            // NB: Tokenizer alway return float
-            values.push_back(static_cast<T>(std::get<Tokenizer::Constant>(tok).val));
-            tokenizer->Next();
+
+            auto tv = ParseTriangleVertex(tokenizer);
+            pi.vertex.push_back(tv);
+
+            if (tokenizer->IsEnd()) {
+                return pi;
+            }
         }
-        // Code shouldn't be there
         assert(false);
     }
 

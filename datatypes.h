@@ -1,29 +1,27 @@
 #pragma once
 
-#include <array>
-#include <vector>
-
 struct Vec3f {
     Vec3f() = default;
 
-    Vec3f(std::array<double, 3> arr) : x(arr[0]), y(arr[1]), z(arr[2]) {}
-    Vec3f(std::array<float,  3> arr) : x(arr[0]), y(arr[1]), z(arr[2]) {}
+    Vec3f(std::array<double, 3> arr) : x(arr[0]), y(arr[1]), z(arr[2]) {
+    }
 
-    Vec3f(float _x, float _y, float _z) : x(_x), y(_y), z(_z) {}
+    Vec3f(double _x, double _y, double _z) : x(_x), y(_y), z(_z) {
+    }
 
-    Vec3f exp(float e) const {
+    Vec3f exp(double e) const {
         return Vec3f{std::pow(x, e), std::pow(y, e), std::pow(z, e)};
     }
 
-    Vec3f operator*(float c) const {
+    Vec3f operator*(double c) const {
         return Vec3f{x * c, y * c, z * c};
     };
 
-    Vec3f operator/(float c) const {
+    Vec3f operator/(double c) const {
         return Vec3f{x / c, y / c, z / c};
     };
 
-    // FIXME: Compare float
+    // FIXME: Compare double
     bool operator==(Vec3f rhs) {
         return x == rhs.x && y == rhs.y && z == rhs.z;
     }
@@ -36,11 +34,11 @@ struct Vec3f {
         return *this == Vec3f{0, 0, 0};
     }
 
-    float dot(Vec3f rhs) const {
+    double dot(Vec3f rhs) const {
         return (x * rhs.x) + (y * rhs.y) + (z * rhs.z);
     };
 
-    float length() const {
+    double length() const {
         return std::sqrt(x * x + y * y + z * z);
     }
 
@@ -57,17 +55,17 @@ struct Vec3f {
         return *this;
     };
 
-    float norm() const {
+    double norm() const {
         return std::sqrt(x * x + y * y + z * z);
     }
 
-    Vec3f normalize(float l = 1) const {
-        return (*this)*(l / norm());
+    Vec3f normalize(double l = 1) const {
+        return (*this) * (l / norm());
     }
 
-    float x = 0.0;
-    float y = 0.0;
-    float z = 0.0;
+    double x = 0.0;
+    double y = 0.0;
+    double z = 0.0;
 };
 
 Vec3f operator-(Vec3f lhs, Vec3f rhs) {
@@ -82,7 +80,7 @@ Vec3f operator*(Vec3f lhs, Vec3f rhs) {
     return Vec3f{lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z};
 };
 
-Vec3f operator*(float v, Vec3f rhs) {
+Vec3f operator*(double v, Vec3f rhs) {
     return rhs * v;
 };
 
@@ -95,19 +93,32 @@ Vec3f operator+(int val, Vec3f rhs) {
     return {rhs.x + val, rhs.y + val, rhs.z + val};
 };
 
+Vec3f operator+(Vec3f lhs, double val) {
+    return val + lhs;
+};
+
+Vec3f operator-(Vec3f rhs, double val) {
+    return {rhs.x - val, rhs.y - val, rhs.z - val};
+};
+
 std::ostream& operator<<(std::ostream& os, Vec3f vec) {
     os << "[ " << vec.x << " " << vec.y << " " << vec.z << " ]" << std::endl;
     return os;
 }
 
-
 class Matf {
 public:
     Matf() = default;
-    Matf(size_t w, size_t h) : width(w), height(h), data(w, std::vector<Vec3f>(h)) {}
+    Matf(size_t w, size_t h) : width(w), height(h), data(w, std::vector<Vec3f>(h)) {
+    }
 
-    size_t GetW()  const {return width;}
-    size_t GetH() const  {return height;}
+    size_t GetW() const {
+        return width;
+    }
+
+    size_t GetH() const {
+        return height;
+    }
 
     std::vector<Vec3f>& operator[](int i) {
         return data[i];
@@ -118,7 +129,7 @@ public:
     }
 
 private:
-    size_t width  = 0;
+    size_t width = 0;
     size_t height = 0;
 
     std::vector<std::vector<Vec3f>> data;
