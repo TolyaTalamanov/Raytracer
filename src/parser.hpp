@@ -2,16 +2,15 @@
 
 #include <unordered_map>
 
-#include "builder.h"
-#include "tokenizer.h"
-#include "object.h"
+#include "builder.hpp"
+#include "tokenizer.hpp"
+#include "object.hpp"
 
 #include <cassert>
 
 #include <optional>
 
-std::ostream& operator<<(std::ostream& os, const PolygonInfo& pi) {
-    os << "PolygonInfo: " << std::endl;
+inline std::ostream& operator<<(std::ostream& os, const PolygonInfo& pi) {
     for (auto&& v : pi.vertex) {
         os << v << std::endl;
     }

@@ -1,42 +1,37 @@
-#pragma once
-
 #include <functional>
 #include <string>
 #include <optional>
+#include <memory>
 
 #include <math.h>
 
-#include "image.h"
-#include "object.h"
-#include "parser.h"
-#include "camera_options.h"
-#include "render_options.h"
+#include <raytracer/render.hpp>
+#include <raytracer/image.hpp>
+
+#include "datatypes.hpp"
+#include "object.hpp"
+#include "parser.hpp"
 
 using Arr44f = std::array<std::array<double, 4>, 4>;
 using TransformVec = std::function<Vec3f(const Vec3f& vec)>;
 using TransformDir = std::function<Vec3f(const Vec3f& vec)>;
 
-struct Options {
-    CameraOptions camera_options;
-    RenderOptions render_options;
-};
-
-Vec3f tone_mapping(Vec3f pixel, double C) {
+static Vec3f tone_mapping(Vec3f pixel, double C) {
     return pixel * ((1 + (pixel / (C * C)))) / (1 + pixel);
 }
 
-Vec3f gamma_correction(Vec3f pixel) {
+static Vec3f gamma_correction(Vec3f pixel) {
     return pixel.exp(1 / 2.2);
 }
 
-RGB toRGB(Vec3f Vgamma) {
+static RGB toRGB(Vec3f Vgamma) {
     RGB pixel{static_cast<int>(Vgamma.x * 255), static_cast<int>(Vgamma.y * 255),
               static_cast<int>(Vgamma.z * 255)};
 
     return pixel;
 }
 
-double clamp(double lower, double upper, double value) {
+static double clamp(double lower, double upper, double value) {
     if (value < lower) {
         return lower;
     }
@@ -48,7 +43,7 @@ double clamp(double lower, double upper, double value) {
     return value;
 }
 
-Vec3f refract(const Vec3f& I, const Vec3f& N, double ior) {
+static Vec3f refract(const Vec3f& I, const Vec3f& N, double ior) {
     double cosi = clamp(-1, 1, I.dot(N));
     double etai = 1, etat = ior;
 
@@ -65,11 +60,31 @@ Vec3f refract(const Vec3f& I, const Vec3f& N, double ior) {
     return k < 0 ? Vec3f{0, 0, 0} : (eta * I + (eta * cosi - sqrtf(k)) * n);
 }
 
-Vec3f reflect(const Vec3f& I, const Vec3f& N) {
+static Vec3f reflect(const Vec3f& I, const Vec3f& N) {
     return I - (N * 2.f * N.dot(I));
 }
 
-Vec3f trace(const Ray& ray, const Scene& scene, const Options& options, int depth = 0,
+static void postprocessing(Matf& mat) {
+    double C = std::numeric_limits<double>::min();
+    for (int i = 0; i < mat.GetW(); ++i) {
+        for (int j = 0; j < mat.GetH(); ++j) {
+            auto& vec = mat[i][j];
+            double max = std::max({vec.x, vec.y, vec.z});
+            if (max > C) {
+                C = max;
+            }
+        }
+    }
+
+    for (int i = 0; i < mat.GetW(); ++i) {
+        for (int j = 0; j < mat.GetH(); ++j) {
+            auto& vec = mat[i][j];
+            mat[i][j] = gamma_correction(tone_mapping(vec, C));
+        }
+    }
+}
+
+static Vec3f trace(const Ray& ray, const Scene& scene, const Options& options, int depth = 0,
             bool outside = true) {
     Vec3f background{0.0, 0.0, 0.0};
     if (depth == options.render_options.depth) {
@@ -173,25 +188,6 @@ Vec3f trace(const Ray& ray, const Scene& scene, const Options& options, int dept
     return Ibase + Icomp;
 }
 
-void postprocessing(Matf& mat) {
-    double C = std::numeric_limits<double>::min();
-    for (int i = 0; i < mat.GetW(); ++i) {
-        for (int j = 0; j < mat.GetH(); ++j) {
-            auto& vec = mat[i][j];
-            double max = std::max({vec.x, vec.y, vec.z});
-            if (max > C) {
-                C = max;
-            }
-        }
-    }
-
-    for (int i = 0; i < mat.GetW(); ++i) {
-        for (int j = 0; j < mat.GetH(); ++j) {
-            auto& vec = mat[i][j];
-            mat[i][j] = gamma_correction(tone_mapping(vec, C));
-        }
-    }
-}
 
 Image Render(const std::string& filename, const CameraOptions& camera_options,
              const RenderOptions& render_options) {

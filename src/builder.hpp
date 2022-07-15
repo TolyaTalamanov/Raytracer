@@ -1,7 +1,9 @@
 #pragma once
 
-#include "object.h"
-#include "datatypes.h"
+#include <unordered_map>
+
+#include "object.hpp"
+#include "datatypes.hpp"
 
 class SceneBuilder {
 public:

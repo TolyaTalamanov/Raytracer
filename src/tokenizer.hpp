@@ -3,6 +3,7 @@
 #include <fstream>
 #include <sstream>
 #include <variant>
+#include <memory>
 
 class Tokenizer {
 public:

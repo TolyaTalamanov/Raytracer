@@ -4,7 +4,9 @@
 #include <vector>
 #include <memory>
 
-#include "datatypes.h"
+#include <cmath>
+
+#include "datatypes.hpp"
 
 struct TriangleVertex {
     int v;
@@ -18,7 +20,7 @@ struct ExplicitNormals {
     Vec3f v2n;
 };
 
-std::ostream& operator<<(std::ostream& os, const TriangleVertex& tv) {
+inline std::ostream& operator<<(std::ostream& os, const TriangleVertex& tv) {
     // FIXME: Ugly handler
     if (tv.vt.has_value() && tv.vn.has_value()) {
         os << tv.v << " / " << tv.vt.has_value() << " / " << tv.vn.has_value() << std::endl;
@@ -126,7 +128,7 @@ public:
             return {};
         }
 
-        double thc = sqrtf(r * r - d2);
+        double thc = std::sqrt(r * r - d2);
         double distance = tca - thc;
         double t1 = tca + thc;
 

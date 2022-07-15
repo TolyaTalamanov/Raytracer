@@ -22,3 +22,12 @@ struct CameraOptions {
     {
     }
 };
+
+struct RenderOptions {
+    int depth;
+};
+
+struct Options {
+    CameraOptions camera_options;
+    RenderOptions render_options;
+};
