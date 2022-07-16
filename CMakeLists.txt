@@ -21,8 +21,6 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 ########################################
 option(BUILD_TESTS "Build raytracer with tests" ON)
 
-add_subdirectory(thirdparty)
-
 set(SRC_FILES
     # API
     ${CMAKE_CURRENT_LIST_DIR}/src/image.cpp
@@ -46,13 +44,16 @@ find_package(PNG REQUIRED)
 find_package(JPEG REQUIRED)
 target_link_libraries(${PROJECT_NAME} ${PNG_LIBRARY} ${JPEG_LIBRARIES})
 
+########################################
+# Add thirdparty
+########################################
+add_subdirectory(thirdparty)
+
+# Tests
+if (BUILD_TESTS)
+    add_subdirectory(tests)
+endif(BUILD_TESTS)
+
 # Tool
 add_executable(raytracer-tool main.cpp)
 target_link_libraries(raytracer-tool ${PROJECT_NAME})
-
-# Tests
-enable_testing()
-add_executable(raytracer-tests raytracer_tests.cpp)
-include_directories(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
-target_link_libraries(raytracer-tests gtest gtest_main)
-target_link_libraries(raytracer-tests ${PROJECT_NAME})

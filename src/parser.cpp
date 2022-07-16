@@ -10,52 +10,52 @@ const Scene& Parser::Parse(const std::string filename) {
     std::string mtl_name;
     while (!tokenizer.IsEnd()) {
         auto token = tokenizer.GetToken();
-        if (std::holds_alternative<Tokenizer::Word>(token)) {
-            auto&& word = std::get<Tokenizer::Word>(token).word;
-            if (word == "mtllib") {
+        if (std::holds_alternative<Tokenizer::String>(token)) {
+            auto&& str = std::get<Tokenizer::String>(token).str;
+            if (str == "mtllib") {
                 // Obtain filename
                 tokenizer.Next();
                 auto tok = tokenizer.GetToken();
-                if (!std::holds_alternative<Tokenizer::Word>(tok)) {
-                    throw std::logic_error("Next token after mtllib should be Tokenizer::Word");
+                if (!std::holds_alternative<Tokenizer::String>(tok)) {
+                    throw std::logic_error("Next token after mtllib should be Tokenizer::String");
                 }
-                auto&& filename = std::get<Tokenizer::Word>(tok).word;
+                auto&& filename = std::get<Tokenizer::String>(tok).str;
                 ParseMtlFile(dir + "/" + filename);
-            } else if (word == "usemtl") {
+            } else if (str == "usemtl") {
                 tokenizer.Next();
                 auto tok = tokenizer.GetToken();
-                if (!std::holds_alternative<Tokenizer::Word>(tok)) {
-                    throw std::logic_error("Next token after usemtl should be Tokenizer::Word");
+                if (!std::holds_alternative<Tokenizer::String>(tok)) {
+                    throw std::logic_error("Next token after usemtl should be Tokenizer::String");
                 }
 
                 // Store mtl_name for object
                 // FIXME: Should it be parsed together with object ?
-                mtl_name = std::get<Tokenizer::Word>(tok).word;
-            } else if (word == "S") {
+                mtl_name = std::get<Tokenizer::String>(tok).str;
+            } else if (str == "S") {
                 tokenizer.Next();
                 auto params = ParseConstants<double, 4>(&tokenizer);
                 _builder.BuildSphere(mtl_name, params);
-            } else if (word == "v") {
+            } else if (str == "v") {
                 tokenizer.Next();
                 auto coords = ParseConstants<double, 3>(&tokenizer);
                 _builder.AddVertex(coords);
-            } else if (word == "vn") {
+            } else if (str == "vn") {
                 tokenizer.Next();
                 auto coords = ParseConstants<double, 3>(&tokenizer);
                 _builder.AddVertexNormal(coords);
-            } else if (word == "vt") {
+            } else if (str == "vt") {
                 tokenizer.Next();
                 auto coords = ParseConstants<double, 3>(&tokenizer);
                 // FIXME: Isn't necessary for baseline
                 //_builder.AddVertexTexture(coords);
-            } else if (word == "f") {
+            } else if (str == "f") {
                 tokenizer.Next();
                 auto polygon = ParsePolygon(&tokenizer);
                 _builder.BuildPolygon(mtl_name, polygon);
                 // FIXME: After ParseAllConstantInLine() we are already on next token,
                 // so just continue
                 continue;
-            } else if (word == "P") {
+            } else if (str == "P") {
                 tokenizer.Next();
                 auto params = ParseConstants<double, 6>(&tokenizer);
                 _builder.AddLight(params);
@@ -78,9 +78,9 @@ void Parser::ParseMtlFile(const std::string& filename) {
     Tokenizer tokenizer(&stream);
     while (!tokenizer.IsEnd()) {
         auto token = tokenizer.GetToken();
-        if (std::holds_alternative<Tokenizer::Word>(token)) {
-            auto&& word = std::get<Tokenizer::Word>(token).word;
-            if (word == "newmtl") {
+        if (std::holds_alternative<Tokenizer::String>(token)) {
+            auto&& str = std::get<Tokenizer::String>(token).str;
+            if (str == "newmtl") {
                 tokenizer.Next();
                 ParseMtl(&tokenizer);
             }
@@ -92,10 +92,10 @@ void Parser::ParseMtlFile(const std::string& filename) {
 
 void Parser::ParseMtl(Tokenizer* tokenizer) {
     auto tok = tokenizer->GetToken();
-    if (!std::holds_alternative<Tokenizer::Word>(tok)) {
-        throw std::logic_error("Next token after newmtl should be Tokenizer::Word");
+    if (!std::holds_alternative<Tokenizer::String>(tok)) {
+        throw std::logic_error("Next token after newmtl should be Tokenizer::String");
     }
-    std::string name = std::get<Tokenizer::Word>(tok).word;
+    std::string name = std::get<Tokenizer::String>(tok).str;
 
     // Init material
     Material mtl;
@@ -106,10 +106,10 @@ void Parser::ParseMtl(Tokenizer* tokenizer) {
         assert(!tokenizer->IsEnd());
 
         tok = tokenizer->GetToken();
-        if (!std::holds_alternative<Tokenizer::Word>(tok)) {
+        if (!std::holds_alternative<Tokenizer::String>(tok)) {
             throw std::logic_error("Unsupported option for newmtl");
         }
-        auto optname = std::get<Tokenizer::Word>(tok).word;
+        auto optname = std::get<Tokenizer::String>(tok).str;
 
         // NB: Go to params list
         tokenizer->Next();
@@ -158,11 +158,11 @@ void Parser::ParseMtl(Tokenizer* tokenizer) {
         }
 
         tok = tokenizer->GetToken();
-        if (!std::holds_alternative<Tokenizer::Word>(tok)) {
+        if (!std::holds_alternative<Tokenizer::String>(tok)) {
             throw std::logic_error("Invalid token in mtl file");
         }
 
-        if (std::get<Tokenizer::Word>(tok).word == "newmtl") {
+        if (std::get<Tokenizer::String>(tok).str == "newmtl") {
             // New material section is started
             mtl.name = name;
             _builder.AddMaterial(name, mtl);
@@ -177,10 +177,10 @@ TriangleVertex Parser::ParseTriangleVertex(Tokenizer* tokenizer) {
 
     // Parse v
     auto tok = tokenizer->GetToken();
-    if (!std::holds_alternative<Tokenizer::Constant>(tok)) {
+    if (!std::holds_alternative<Tokenizer::Double>(tok)) {
         throw std::logic_error("Triangle vertex should contain constant in the beginning");
     }
-    tv.v = std::get<Tokenizer::Constant>(tok).val;
+    tv.v = std::get<Tokenizer::Double>(tok).val;
     tokenizer->Next();
 
     tok = tokenizer->GetToken();
@@ -191,8 +191,8 @@ TriangleVertex Parser::ParseTriangleVertex(Tokenizer* tokenizer) {
 
     tok = tokenizer->GetToken();
     // Parse vt
-    if (std::holds_alternative<Tokenizer::Constant>(tok)) {
-        tv.vt = std::get<Tokenizer::Constant>(tok).val;
+    if (std::holds_alternative<Tokenizer::Double>(tok)) {
+        tv.vt = std::get<Tokenizer::Double>(tok).val;
         // Skip next slash
         tokenizer->Next();
         tok = tokenizer->GetToken();
@@ -204,10 +204,10 @@ TriangleVertex Parser::ParseTriangleVertex(Tokenizer* tokenizer) {
 
     // Parse vn
     tok = tokenizer->GetToken();
-    if (!std::holds_alternative<Tokenizer::Constant>(tok)) {
+    if (!std::holds_alternative<Tokenizer::Double>(tok)) {
         throw std::logic_error("Triangle vertex should contain constant in the ending");
     }
-    tv.vn = std::get<Tokenizer::Constant>(tok).val;
+    tv.vn = std::get<Tokenizer::Double>(tok).val;
 
     tokenizer->Next();
     return tv;
@@ -218,7 +218,7 @@ PolygonInfo Parser::ParsePolygon(Tokenizer* tokenizer) {
 
     while (true) {
         auto tok = tokenizer->GetToken();
-        if (!std::holds_alternative<Tokenizer::Constant>(tok)) {
+        if (!std::holds_alternative<Tokenizer::Double>(tok)) {
             return pi;
         }
 

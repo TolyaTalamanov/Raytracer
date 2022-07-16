@@ -7,16 +7,16 @@
 
 class Tokenizer {
 public:
-    struct Constant {
+    struct Double {
         double val;
     };
-    struct Word {
-        std::string word;
+    struct String {
+        std::string str;
     };
     struct Slash     {};
     struct EndOfFile {};
 
-    using Token = std::variant<Constant, Word, Slash, EndOfFile>;
+    using Token = std::variant<Double, String, Slash, EndOfFile>;
 
     Tokenizer(std::istream* in);
 
@@ -28,8 +28,7 @@ public:
 private:
     std::string ParseString();
     double      ParseDouble();
-    void        SkipComment();
-    void        SkipSpaces();
+    void        SkipIgnored();
 
     std::istream* _in;
     std::unique_ptr<Token> _lasttok;
