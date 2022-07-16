@@ -1,6 +1,6 @@
 #include <cmath>
 
-#include "datatypes.hpp"
+#include <raytracer/datatypes.hpp>
 
 /* ############################################# Vec3f Implementation ######################################### */
 

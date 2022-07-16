@@ -7,10 +7,9 @@
 
 #include <raytracer/render.hpp>
 #include <raytracer/image.hpp>
-
-#include "datatypes.hpp"
-#include "object.hpp"
-#include "parser.hpp"
+#include <raytracer/parser.hpp>
+#include <raytracer/datatypes.hpp>
+#include <raytracer/object.hpp>
 
 using Arr44f = std::array<std::array<double, 4>, 4>;
 using TransformVec = std::function<Vec3f(const Vec3f& vec)>;

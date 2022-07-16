@@ -1,4 +1,4 @@
-#include "builder.hpp"
+#include <raytracer/builder.hpp>
 
 void SceneBuilder::AddMaterial(const std::string& name, const Material& mtl) {
     _state.name2material.emplace(name, mtl);

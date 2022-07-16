@@ -1,4 +1,4 @@
-#include "parser.hpp"
+#include <raytracer/parser.hpp>
 
 const Scene& Parser::Parse(const std::string filename) {
     auto dir = filename.substr(0, filename.find_last_of("/\\"));

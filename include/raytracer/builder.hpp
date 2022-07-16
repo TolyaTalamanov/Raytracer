@@ -2,8 +2,8 @@
 
 #include <unordered_map>
 
-#include "object.hpp"
-#include "datatypes.hpp"
+#include <raytracer/object.hpp>
+#include <raytracer/datatypes.hpp>
 
 class SceneBuilder {
 public:

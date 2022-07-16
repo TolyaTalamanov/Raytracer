@@ -1,1 +1,1 @@
-#include "object.hpp"
+#include <raytracer/object.hpp>
