@@ -5,8 +5,9 @@
 
 #include <cassert>
 
+#include <raytracer/tokenizer.hpp>
+
 #include "builder.hpp"
-#include "tokenizer.hpp"
 #include "object.hpp"
 
 class Parser {
@@ -24,11 +25,11 @@ private:
         std::array<T, N> values;
         for (int i = 0; i < N; ++i) {
             auto tok = tokenizer->GetToken();
-            if (!std::holds_alternative<Tokenizer::Constant>(tok)) {
+            if (!std::holds_alternative<Tokenizer::Double>(tok)) {
                 throw std::logic_error("Param list for option should contain double constants");
             }
             // NB: Tokenizer alway return double
-            values[i] = static_cast<T>(std::get<Tokenizer::Constant>(tok).val);
+            values[i] = static_cast<T>(std::get<Tokenizer::Double>(tok).val);
             tokenizer->Next();
         }
         return values;

@@ -1,15 +1,16 @@
-#include "tokenizer.hpp"
+#include <raytracer/tokenizer.hpp>
+#include <iostream>
 
 Tokenizer::Tokenizer(std::istream* in) : _in(in) {
-    SkipSpaces();
+    SkipIgnored();
 }
 
 bool Tokenizer::IsEnd() const {
-    return _in->peek() == EOF;
+    return (!_lasttok) && _in->peek() == EOF;
 }
 
 void Tokenizer::Next() {
-    SkipSpaces();
+    SkipIgnored();
     _lasttok = nullptr;
 }
 
@@ -25,19 +26,10 @@ Tokenizer::Token Tokenizer::GetToken() {
         // NB: Move cursor to the next symbol
         _in->get();
     } else if (std::isdigit(c) || c == '-') {
-        _lasttok.reset(new Tokenizer::Token{Constant{ParseDouble()}});
-    } else if (c == '#') {
-        SkipComment();
-        Next();
-        if (IsEnd()) {
-            _lasttok.reset(new Tokenizer::Token{EndOfFile{}});
-        } else {
-            auto token = GetToken();
-            _lasttok.reset(new Tokenizer::Token{token});
-        }
+        _lasttok.reset(new Tokenizer::Token{Double{ParseDouble()}});
     } else if (std::isalpha(c)) {
         auto word = ParseString();
-        _lasttok.reset(new Tokenizer::Token{Word{word}});
+        _lasttok.reset(new Tokenizer::Token{String{word}});
     }
 
     if (!_lasttok) {
@@ -60,11 +52,16 @@ std::string Tokenizer::ParseString() {
     return word;
 }
 
-void Tokenizer::SkipSpaces() {
-    char s = _in->peek();
-    while (std::isspace(s)) {
-        _in->get();
-        s = _in->peek();
+void Tokenizer::SkipIgnored() {
+    while (true) {
+        char c = _in->peek();
+        if (c == '#') {
+            NextLine();
+        } else if (std::isspace(c)) {
+            _in->get();
+        } else {
+            break;
+        }
     }
 }
 
@@ -72,9 +69,4 @@ double Tokenizer::ParseDouble() {
     double val;
     (*_in) >> val;
     return val;
-}
-
-void Tokenizer::SkipComment() {
-    // Go to the next line
-    NextLine();
 }
