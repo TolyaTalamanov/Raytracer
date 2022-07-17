@@ -83,8 +83,11 @@ static void postprocessing(Matf& mat) {
     }
 }
 
-static Vec3f trace(const Ray& ray, const Scene& scene, const Options& options, int depth = 0,
-            bool outside = true) {
+static Vec3f trace(const Ray&     ray,
+                   const Scene&   scene,
+                   const Options& options,
+                   int            depth = 0,
+                   bool           outside = true) {
     Vec3f background{0.0, 0.0, 0.0};
     if (depth == options.render_options.depth) {
         return background;
