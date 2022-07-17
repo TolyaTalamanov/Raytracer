@@ -7,6 +7,7 @@
 #include <cmath>
 
 #include "datatypes.hpp"
+#include "options.hpp"
 
 struct TriangleVertex {
     int v;
@@ -52,9 +53,9 @@ struct Material {
 };
 
 struct HitInfo {
-    Vec3f point;
-    Vec3f N;
-    double t;
+    Vec3f  position;
+    Vec3f  normal;
+    double distance;
 };
 
 class Object {
@@ -101,3 +102,11 @@ struct Scene {
     Objects objects;
     Lights  lights;
 };
+
+Vec3f Refract(const Vec3f& I, const Vec3f& N, double ior);
+Vec3f Reflect(const Vec3f& I, const Vec3f& N);
+Vec3f Trace(const Ray&     ray,
+            const Scene&   scene,
+            const Options& options,
+            int            depth   = 0,
+            bool           outside = true);

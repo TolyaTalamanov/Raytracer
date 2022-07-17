@@ -2,7 +2,7 @@
 
 #include <unordered_map>
 
-#include <raytracer/object.hpp>
+#include <raytracer/geometry.hpp>
 #include <raytracer/datatypes.hpp>
 
 class SceneBuilder {
