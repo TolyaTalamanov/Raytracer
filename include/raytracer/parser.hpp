@@ -8,7 +8,7 @@
 #include <raytracer/tokenizer.hpp>
 
 #include "builder.hpp"
-#include "object.hpp"
+#include "geometry.hpp"
 
 class Parser {
 public:

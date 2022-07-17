@@ -29,7 +29,7 @@ set(SRC_FILES
     ${CMAKE_CURRENT_LIST_DIR}/src/tokenizer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/builder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/datatypes.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/object.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/geometry.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/parser.cpp
 )
 
