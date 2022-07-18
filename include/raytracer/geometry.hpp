@@ -9,20 +9,61 @@
 #include "datatypes.hpp"
 #include "options.hpp"
 
-struct TriangleVertex {
+// NB: http://paulbourke.net/dataformats/obj/
+
+// NB: Specifies a geometric vertex and its x y z coordinates.
+// Rational  curves and surfaces require a fourth
+// homogeneous coordinate, also called the weight
+struct GeometricVertex {
+    double x;
+    double y;
+    double z;
+    double w = 1.0;
+};
+
+// NB: Specifies a texture vertex and its coordinates. A 1D texture
+// requires only u texture coordinates, a 2D texture requires both u
+// and v texture coordinates, and a 3D texture requires all three
+// coordinates.
+struct TextureVertex {
+    double u;
+    double v = 0.0;
+    double w = 0.0;
+};
+
+// NB: Vertex normals affect the smooth-shading and rendering of geometry.
+// For polygons, vertex normals are used in place of the actual facet
+// normals. For surfaces, vertex normals are interpolated over the
+// entire surface and replace the actual analytic surface normal.
+struct VertexNormal {
+    double i;
+    double j;
+    double k;
+};
+
+struct FaceVertex {
+    using OI = std::optional<int>;
+
     int v;
-    std::optional<int> vt;
-    std::optional<int> vn;
+    OI  vt;
+    OI  vn;
+};
+
+// NB: Specifies a face element and its vertex reference number. You can
+// optionally include the texture vertex and vertex normal reference numbers.
+struct FaceElement {
+    std::vector<FaceVertex> vertices;
+};
+
+struct SphereElement {
+    Vec3f  position;
+    double radius;
 };
 
 struct ExplicitNormals {
     Vec3f v0n;
     Vec3f v1n;
     Vec3f v2n;
-};
-
-struct PolygonInfo {
-    std::vector<TriangleVertex> vertex;
 };
 
 struct Ray {
@@ -87,13 +128,20 @@ private:
 
 class Triangle : public Object {
 public:
-    Triangle(const std::array<Vec3f, 3>& pts, const Material m = {});
-    Triangle(const std::array<Vec3f, 3>& pts,
-             const ExplicitNormals& normals,
-             const Material m = {});
+    template <typename T>
+    using OA = std::optional<std::array<T, 3>>;
+
+    Triangle(const std::array<GeometricVertex, 3>& v,
+             const Material&                     m  = {},
+             const OA<TextureVertex>             vt = {},
+             const OA<VertexNormal>              vn = {});
 
     std::optional<HitInfo> intersect(const Ray& ray) override;
 private:
+    std::array<GeometricVertex, 3> geom_vertices;
+    OA<TextureVertex>              texture_vertices;
+    OA<VertexNormal>               vertex_normals;
+
     Vec3f v0, v1, v2;
     std::optional<ExplicitNormals> has_normals;
 };

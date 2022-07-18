@@ -64,8 +64,7 @@ Image Render(const std::string& filename, const CameraOptions& camera_options,
     Image img(width, height);
     Matf  mat(width, height);
 
-    Parser parser;
-    const auto& scene = parser.Parse(filename);
+    const auto scene = Parse(filename);
 
     double scale = std::tan(fov * 0.5);
     double ratio = width / static_cast<double>(height);

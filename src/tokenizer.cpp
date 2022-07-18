@@ -6,10 +6,15 @@ Tokenizer::Tokenizer(std::istream* in) : _in(in) {
 }
 
 bool Tokenizer::IsEnd() const {
-    return (!_lasttok) && _in->peek() == EOF;
+    return ((!_lasttok)
+            || std::holds_alternative<Tokenizer::EndOfFile>(*_lasttok))
+        && _in->peek() == EOF;
 }
 
 void Tokenizer::Next() {
+    if (!_lasttok) {
+        GetToken();
+    }
     SkipIgnored();
     _lasttok = nullptr;
 }
@@ -30,6 +35,8 @@ Tokenizer::Token Tokenizer::GetToken() {
     } else if (std::isalpha(c)) {
         auto word = ParseString();
         _lasttok.reset(new Tokenizer::Token{String{word}});
+    } else if (c == EOF) {
+        _lasttok.reset(new Tokenizer::Token{EndOfFile{}});
     }
 
     if (!_lasttok) {
@@ -43,7 +50,8 @@ void Tokenizer::NextLine() {
     while (_in->peek() != '\n') {
         _in->get();
     }
-    Next();
+    SkipIgnored();
+    _lasttok = nullptr;
 }
 
 std::string Tokenizer::ParseString() {

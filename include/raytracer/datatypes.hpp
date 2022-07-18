@@ -6,7 +6,7 @@
 
 struct Vec3f {
     Vec3f() = default;
-    explicit Vec3f(std::array<double, 3> arr);
+    explicit Vec3f(const std::array<double, 3>& arr);
     Vec3f(double _x, double _y, double _z);
 
     // FIXME: Compare double

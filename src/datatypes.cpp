@@ -4,10 +4,12 @@
 
 /* ############################################# Vec3f Implementation ######################################### */
 
-Vec3f::Vec3f(std::array<double, 3> arr) : x(arr[0]), y(arr[1]), z(arr[2]) {
+Vec3f::Vec3f(const std::array<double, 3>& arr)
+    : x(arr[0]), y(arr[1]), z(arr[2]) {
 }
 
-Vec3f::Vec3f(double _x, double _y, double _z) : x(_x), y(_y), z(_z) {
+Vec3f::Vec3f(double _x, double _y, double _z)
+    : x(_x), y(_y), z(_z) {
 }
 
 Vec3f Vec3f::exp(double e) const {
