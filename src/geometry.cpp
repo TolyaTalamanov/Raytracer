@@ -59,6 +59,13 @@ std::optional<HitInfo> Sphere::intersect(const Ray& ray) {
     return HitInfo{phit, N, distance};
 }
 
+Triangle::Triangle(const std::vector<GeometricVertex>& v,
+                   const Material&                     m,
+                   const Triangle::OV<TextureVertex>   vt,
+                   const Triangle::OV<VertexNormal>    vn)
+    : Object(m), geom_vertices(v), texture_vertices(vt), vertex_normals(vn) {
+}
+
 Triangle::Triangle(const std::array<Vec3f, 3>& pts, const Material m)
     : Object(m), v0(pts[0]), v1(pts[1]), v2(pts[2]) {
 }
