@@ -90,3 +90,25 @@ TEST(TokenizerTests, SkipCommentsMiddle) {
     t.Next();
     EXPECT_TRUE(t.IsEnd());
 }
+
+TEST(TokenizerTests, SkipToken) {
+    std::stringstream ss{"foo42"};
+    Tokenizer t(&ss);
+
+    t.Next();
+
+    auto tok = t.GetToken();
+    EXPECT_TRUE(std::holds_alternative<Tokenizer::Double>(tok));
+    EXPECT_EQ(42, std::get<Tokenizer::Double>(tok).val);
+}
+
+TEST(TokenizerTests, NoThrowGetTokenAfterEnd) {
+    std::stringstream ss{"foo"};
+    Tokenizer t(&ss);
+
+    t.GetToken();
+    t.Next();
+
+    ASSERT_NO_THROW(t.GetToken());
+    EXPECT_TRUE(t.IsEnd());
+}

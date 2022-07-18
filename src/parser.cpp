@@ -1,198 +1,198 @@
+#include <unordered_set>
+
+#include <cassert>
+
 #include <raytracer/parser.hpp>
+#include <raytracer/builder.hpp>
+#include <raytracer/tokenizer.hpp>
 
-const Scene& Parser::Parse(const std::string filename) {
-    auto dir = filename.substr(0, filename.find_last_of("/\\"));
-
-    std::ifstream stream(filename);
-    Tokenizer tokenizer(&stream);
-
-    // FIXME: Current material for object, need to parse usetml and object together
-    std::string mtl_name;
-    while (!tokenizer.IsEnd()) {
-        auto token = tokenizer.GetToken();
-        if (std::holds_alternative<Tokenizer::String>(token)) {
-            auto&& str = std::get<Tokenizer::String>(token).str;
-            if (str == "mtllib") {
-                // Obtain filename
-                tokenizer.Next();
-                auto tok = tokenizer.GetToken();
-                if (!std::holds_alternative<Tokenizer::String>(tok)) {
-                    throw std::logic_error("Next token after mtllib should be Tokenizer::String");
-                }
-                auto&& filename = std::get<Tokenizer::String>(tok).str;
-                ParseMtlFile(dir + "/" + filename);
-            } else if (str == "usemtl") {
-                tokenizer.Next();
-                auto tok = tokenizer.GetToken();
-                if (!std::holds_alternative<Tokenizer::String>(tok)) {
-                    throw std::logic_error("Next token after usemtl should be Tokenizer::String");
-                }
-
-                // Store mtl_name for object
-                // FIXME: Should it be parsed together with object ?
-                mtl_name = std::get<Tokenizer::String>(tok).str;
-            } else if (str == "S") {
-                tokenizer.Next();
-                auto params = ParseConstants<double, 4>(&tokenizer);
-                _builder.BuildSphere(mtl_name, params);
-            } else if (str == "v") {
-                tokenizer.Next();
-                auto coords = ParseConstants<double, 3>(&tokenizer);
-                _builder.AddVertex(coords);
-            } else if (str == "vn") {
-                tokenizer.Next();
-                auto coords = ParseConstants<double, 3>(&tokenizer);
-                _builder.AddVertexNormal(coords);
-            } else if (str == "vt") {
-                tokenizer.Next();
-                auto coords = ParseConstants<double, 3>(&tokenizer);
-                // FIXME: Isn't necessary for baseline
-                //_builder.AddVertexTexture(coords);
-            } else if (str == "f") {
-                tokenizer.Next();
-                auto polygon = ParsePolygon(&tokenizer);
-                _builder.BuildPolygon(mtl_name, polygon);
-                // FIXME: After ParseAllConstantInLine() we are already on next token,
-                // so just continue
-                continue;
-            } else if (str == "P") {
-                tokenizer.Next();
-                auto params = ParseConstants<double, 6>(&tokenizer);
-                _builder.AddLight(params);
-            } else {
-                tokenizer.NextLine();
-                continue;
-            }
-        } else if (std::holds_alternative<Tokenizer::EndOfFile>(token)) {
-            break;
-        } else {
-            throw std::logic_error("Line in *.obj file shouldn't start with this token");
+template <typename T, size_t N>
+std::array<T, N> ParseConstants(Tokenizer* tokenizer) {
+    std::array<T, N> values;
+    for (int i = 0; i < N; ++i) {
+        auto tok = tokenizer->GetToken();
+        if (!std::holds_alternative<Tokenizer::Double>(tok)) {
+            throw std::logic_error("Param list for option should contain double constants");
         }
-        tokenizer.Next();
+        // NB: Tokenizer alway return double
+        values[i] = static_cast<T>(std::get<Tokenizer::Double>(tok).val);
+        tokenizer->Next();
     }
-    return _builder.GetScene();
+    return values;
 }
 
-void Parser::ParseMtlFile(const std::string& filename) {
-    std::ifstream stream(filename);
-    Tokenizer tokenizer(&stream);
-    while (!tokenizer.IsEnd()) {
-        auto token = tokenizer.GetToken();
-        if (std::holds_alternative<Tokenizer::String>(token)) {
-            auto&& str = std::get<Tokenizer::String>(token).str;
-            if (str == "newmtl") {
-                tokenizer.Next();
-                ParseMtl(&tokenizer);
-            }
-        } else {
-            throw std::logic_error("Line in *.mtl file shouldn't start with this token");
-        }
+static GeometricVertex ParseGeometricVertex(Tokenizer* t) {
+    GeometricVertex gv;
+    // Parse x
+    auto tok = t->GetToken();
+    if (!std::holds_alternative<Tokenizer::Double>(tok)) {
+        throw std::logic_error("Geometric vertex (v) must contain x y z w* coordinates but x is missing!");
     }
+    gv.x = std::get<Tokenizer::Double>(tok).val;
+    t->Next();
+
+    // Parse y
+    tok = t->GetToken();
+    if (!std::holds_alternative<Tokenizer::Double>(tok)) {
+        throw std::logic_error("Geometric vertex (v) must contain x y z w* coordinates but y is missing!");
+    }
+    gv.y = std::get<Tokenizer::Double>(tok).val;
+    t->Next();
+
+    // Parse z
+    tok = t->GetToken();
+    if (!std::holds_alternative<Tokenizer::Double>(tok)) {
+        throw std::logic_error("Geometric vertex (v) must contain x y z w* coordinates but z is missing!");
+    }
+    gv.z = std::get<Tokenizer::Double>(tok).val;
+    t->Next();
+
+    // Parse w
+    tok = t->GetToken();
+    if (std::holds_alternative<Tokenizer::Double>(tok)) {
+        gv.w = std::get<Tokenizer::Double>(tok).val;
+        t->Next();
+    }
+
+    return gv;
 }
 
-void Parser::ParseMtl(Tokenizer* tokenizer) {
+static VertexNormal ParseVertexNormal(Tokenizer* t) {
+    VertexNormal vn;
+    // Parse x
+    auto tok = t->GetToken();
+    if (!std::holds_alternative<Tokenizer::Double>(tok)) {
+        throw std::logic_error("Vertex normal (vn) must contain i j k coordinates but i is missing!");
+    }
+    vn.i = std::get<Tokenizer::Double>(tok).val;
+    t->Next();
+
+    // Parse y
+    tok = t->GetToken();
+    if (!std::holds_alternative<Tokenizer::Double>(tok)) {
+        throw std::logic_error("Vertex normal (vn) must contain i j k coordinates but j is missing!");
+    }
+    vn.j = std::get<Tokenizer::Double>(tok).val;
+    t->Next();
+
+    // Parse z
+    tok = t->GetToken();
+    if (!std::holds_alternative<Tokenizer::Double>(tok)) {
+        throw std::logic_error("Vertex normal (vn) must contain i j k coordinates but k is missing!");
+    }
+    vn.k = std::get<Tokenizer::Double>(tok).val;
+    t->Next();
+
+    return vn;
+}
+
+static void ParseNewmtl(Tokenizer* tokenizer,
+                        std::unordered_map<std::string, Material>& materials) {
     auto tok = tokenizer->GetToken();
-    if (!std::holds_alternative<Tokenizer::String>(tok)) {
-        throw std::logic_error("Next token after newmtl should be Tokenizer::String");
+    if (!std::holds_alternative<Tokenizer::String>(tok) ||
+         std::get<Tokenizer::String>(tok).str != "newmtl") {
+        throw std::logic_error("newmtl keyword is missing");
     }
-    std::string name = std::get<Tokenizer::String>(tok).str;
-
-    // Init material
-    Material mtl;
-
     tokenizer->Next();
-    while (true) {
-        // NB: Should be at least one option in material
-        assert(!tokenizer->IsEnd());
 
+    tok = tokenizer->GetToken();
+    if (!std::holds_alternative<Tokenizer::String>(tok)) {
+        throw std::logic_error("String should follow newmtl keyword");
+    }
+    // NB: Start parse material parameters
+    tokenizer->Next();
+    // NB: Should be at least one parameter in material
+    assert(!tokenizer->IsEnd());
+
+    Material mtl;
+    mtl.name = std::get<Tokenizer::String>(tok).str;
+    while (true) {
         tok = tokenizer->GetToken();
         if (!std::holds_alternative<Tokenizer::String>(tok)) {
-            throw std::logic_error("Unsupported option for newmtl");
+            throw std::logic_error("newmtl parameters must begin with string");
         }
-        auto optname = std::get<Tokenizer::String>(tok).str;
-
+        auto param = std::get<Tokenizer::String>(tok).str;
         // NB: Go to params list
         tokenizer->Next();
-
-        if (optname == "Kd") {
+        if (param == "Kd") {
             auto Kd_params = ParseConstants<double, 3>(tokenizer);
             mtl.Kd = Vec3f(Kd_params);
-        } else if (optname == "Ka") {
+        } else if (param == "Ka") {
             auto Ka_params = ParseConstants<double, 3>(tokenizer);
             mtl.Ka = Vec3f(Ka_params);
-        } else if (optname == "Ke") {
+        } else if (param == "Ke") {
             auto Ke = ParseConstants<double, 3>(tokenizer);
             mtl.Ke = Vec3f(Ke);
-        } else if (optname == "Ks") {
+        } else if (param == "Ks") {
             auto Ks_params = ParseConstants<double, 3>(tokenizer);
             mtl.Ks = Vec3f(Ks_params);
-        } else if (optname == "Ns") {
+        } else if (param == "Ns") {
             auto Ns = ParseConstants<double, 1>(tokenizer);
             mtl.Ns = Ns[0];
-        } else if (optname == "illum") {
+        } else if (param == "illum") {
             auto illum = ParseConstants<int, 1>(tokenizer);
             mtl.illum = illum[0];
-        } else if (optname == "Ni") {
+        } else if (param == "Ni") {
             auto Ni = ParseConstants<double, 1>(tokenizer);
             mtl.Ni = Ni[0];
-        } else if (optname == "Tf") {
+        } else if (param == "Tf") {
             auto Tf = ParseConstants<double, 3>(tokenizer);
             mtl.Tf = Vec3f(Tf);
-        } else if (optname == "d") {
+        } else if (param == "d") {
             auto d = ParseConstants<double, 1>(tokenizer);
             mtl.d = d[0];
             mtl.Tr = 1 - mtl.d;
-        } else if (optname == "Tr") {
+        } else if (param == "Tr") {
             auto Tr = ParseConstants<double, 1>(tokenizer);
             mtl.Tr = Tr[0];
             mtl.d = 1 - mtl.Tr;
         } else {
-            throw std::logic_error("Unsupported option name: " + optname);
+            throw std::logic_error("Unsupported newmtl parameter : " + param);
         }
 
-        if (tokenizer->IsEnd()) {
-            // Mtl file is over
-            mtl.name = name;
-            _builder.AddMaterial(name, mtl);
-            return;
-        }
-
+        // NB: Next token is either EOF or newmtl
+        // that means the list of parameters is over.
         tok = tokenizer->GetToken();
-        if (!std::holds_alternative<Tokenizer::String>(tok)) {
-            throw std::logic_error("Invalid token in mtl file");
+        if (std::holds_alternative<Tokenizer::EndOfFile>(tok) ||
+            (std::holds_alternative<Tokenizer::String>(tok) &&
+             std::get<Tokenizer::String>(tok).str == "newmtl")) {
+            break;
         }
+    }
+    materials.emplace(mtl.name, mtl);
+}
 
-        if (std::get<Tokenizer::String>(tok).str == "newmtl") {
-            // New material section is started
-            mtl.name = name;
-            _builder.AddMaterial(name, mtl);
-            return;
-        }
+static void ParseMtlFile(const std::string& filename,
+                         std::unordered_map<std::string, Material>& materials) {
+    std::ifstream stream(filename);
+    Tokenizer tokenizer(&stream);
+    while (!tokenizer.IsEnd()) {
+        ParseNewmtl(&tokenizer, materials);
     }
 }
 
-TriangleVertex Parser::ParseTriangleVertex(Tokenizer* tokenizer) {
+static FaceVertex ParseFaceVertex(Tokenizer* tokenizer) {
     // Format: v/vt/vn
-    TriangleVertex tv;
+    FaceVertex fv;
 
     // Parse v
     auto tok = tokenizer->GetToken();
     if (!std::holds_alternative<Tokenizer::Double>(tok)) {
         throw std::logic_error("Triangle vertex should contain constant in the beginning");
     }
-    tv.v = std::get<Tokenizer::Double>(tok).val;
+    fv.v = std::get<Tokenizer::Double>(tok).val;
     tokenizer->Next();
 
     tok = tokenizer->GetToken();
     if (!std::holds_alternative<Tokenizer::Slash>(tok)) {
-        return tv;
+        return fv;
     }
     tokenizer->Next();
 
     tok = tokenizer->GetToken();
     // Parse vt
     if (std::holds_alternative<Tokenizer::Double>(tok)) {
-        tv.vt = std::get<Tokenizer::Double>(tok).val;
+        fv.vt = std::get<Tokenizer::Double>(tok).val;
         // Skip next slash
         tokenizer->Next();
         tok = tokenizer->GetToken();
@@ -207,27 +207,95 @@ TriangleVertex Parser::ParseTriangleVertex(Tokenizer* tokenizer) {
     if (!std::holds_alternative<Tokenizer::Double>(tok)) {
         throw std::logic_error("Triangle vertex should contain constant in the ending");
     }
-    tv.vn = std::get<Tokenizer::Double>(tok).val;
+    fv.vn = std::get<Tokenizer::Double>(tok).val;
 
     tokenizer->Next();
-    return tv;
+    return fv;
 }
 
-PolygonInfo Parser::ParsePolygon(Tokenizer* tokenizer) {
-    PolygonInfo pi;
-
+static FaceElement ParseFaceElement(Tokenizer* tokenizer) {
+    FaceElement fe;
     while (true) {
         auto tok = tokenizer->GetToken();
         if (!std::holds_alternative<Tokenizer::Double>(tok)) {
-            return pi;
+            return fe;
         }
 
-        auto tv = ParseTriangleVertex(tokenizer);
-        pi.vertex.push_back(tv);
+        auto tv = ParseFaceVertex(tokenizer);
+        fe.vertex.push_back(tv);
 
         if (tokenizer->IsEnd()) {
-            return pi;
+            return fe;
         }
     }
     assert(false);
+}
+
+Scene Parse(const std::string& filename) {
+    const auto obj_file_dir = filename.substr(0, filename.find_last_of("/\\"));
+    std::ifstream stream(filename);
+    return Parse(&stream, obj_file_dir);
+}
+
+Scene Parse(std::istream* stream, const std::string& mtldir) {
+    Tokenizer tokenizer(stream);
+    std::unordered_set<std::string> supported_keywords {
+        "mtllib", "usemtl", "S", "v", "vn", "vt", "f", "P"
+    };
+    std::unordered_map<std::string, Material> materials;
+    SceneBuilder builder;
+
+    while (!tokenizer.IsEnd()) {
+        auto token = tokenizer.GetToken();
+        if (!std::holds_alternative<Tokenizer::String>(token)) {
+            throw std::logic_error("Line in *.obj file must begin with string keyword!");
+        }
+        auto&& keyword = std::get<Tokenizer::String>(token).str;
+        if (auto it = supported_keywords.find(keyword);
+            it == supported_keywords.end()) {
+            // NB: Just ignore unsupported keywords.
+            tokenizer.NextLine();
+            continue;
+        }
+        tokenizer.Next();
+        if (keyword == "mtllib") {
+            // Obtain filename
+            auto tok = tokenizer.GetToken();
+            if (!std::holds_alternative<Tokenizer::String>(tok)) {
+                throw std::logic_error("The string should follow mtlib in *.obj file");
+            }
+            auto&& filename = std::get<Tokenizer::String>(tok).str;
+            ParseMtlFile(mtldir + "/" + filename, materials);
+        } else if (keyword == "usemtl") {
+            auto tok = tokenizer.GetToken();
+            if (!std::holds_alternative<Tokenizer::String>(tok)) {
+                throw std::logic_error("Next token after usemtl should be Tokenizer::String");
+            }
+
+            auto it = materials.find(std::get<Tokenizer::String>(tok).str);
+            if (it == materials.end()) {
+                throw std::logic_error("Failed to find material with name: " + it->first);
+            }
+            builder.UseMaterial(it->second);
+        } else if (keyword == "S") {
+            auto params = ParseConstants<double, 4>(&tokenizer);
+            builder.Add(SphereElement{Vec3f{params[0],params[1],params[2]},params[3]});
+        } else if (keyword == "v") {
+            builder.Add(ParseGeometricVertex(&tokenizer));
+        } else if (keyword == "vn") {
+            builder.Add(ParseVertexNormal(&tokenizer));
+        } else if (keyword == "vt") {
+            auto coords = ParseConstants<double, 3>(&tokenizer);
+            //builder.Add(ParseTextureVertex(&tokenizer));
+        } else if (keyword == "f") {
+            builder.Add(ParseFaceElement(&tokenizer));
+        } else if (keyword == "P") {
+            auto params = ParseConstants<double, 6>(&tokenizer);
+            builder.Add(Light{Vec3f{params[0],params[1],params[2]},
+                              Vec3f{params[3],params[4],params[5]}});
+        } else {
+            assert("Unreachable code!" && false);
+        }
+    }
+    return builder.Finalize();
 }

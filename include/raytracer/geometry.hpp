@@ -21,10 +21,6 @@ struct ExplicitNormals {
     Vec3f v2n;
 };
 
-struct PolygonInfo {
-    std::vector<TriangleVertex> vertex;
-};
-
 struct Ray {
     Vec3f at(double t) const;
 

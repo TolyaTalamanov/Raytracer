@@ -111,9 +111,9 @@ std::optional<HitInfo> Triangle::intersect(const Ray& ray) {
     w = (1 - u - v);
     if (has_normals) {
         auto normals = has_normals.value();
-        N = (u * normals.v0n.normalize() + v * normals.v1n.normalize() +
-                w * normals.v2n.normalize())
-            .normalize();
+        N = (u * normals.v0n.normalize() +
+             v * normals.v1n.normalize() +
+             w * normals.v2n.normalize()).normalize();
     }
 
     return HitInfo{P, N, t};

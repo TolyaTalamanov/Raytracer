@@ -1,117 +1,136 @@
 #include <raytracer/builder.hpp>
 
-void SceneBuilder::AddMaterial(const std::string& name, const Material& mtl) {
-    _state.name2material.emplace(name, mtl);
+int static GetNormalizedIndex(int idx, int size) {
+    return idx >= 0 ? (idx - 1) : (size + idx);
 }
 
-void SceneBuilder::AddVertex(const std::array<double, 3>& params) {
-    _state.vertex.emplace_back(params[0], params[1], params[2]);
+SceneBuilder::SceneBuilder() : _state(new State{}) { };
+
+SceneBuilder& SceneBuilder::UseMaterial(const Material& m) {
+    _state->material = m;
+    return *this;
 }
 
-void SceneBuilder::AddVertexNormal(const std::array<double, 3>& params) {
-    _state.vertex_normal.emplace_back(params[0], params[1], params[2]);
+SceneBuilder& SceneBuilder::Add(const GeometricVertex& v) {
+    _state->geom_vertices.push_back(v);
+    return *this;
 }
 
-void SceneBuilder::AddLight(const std::array<double, 6>& params) {
-    _scene.lights.emplace_back(Vec3f{params[0], params[1], params[2]},
-            Vec3f{params[3], params[4], params[5]});
+SceneBuilder& SceneBuilder::Add(const VertexNormal& vn) {
+    _state->vertex_normals.push_back(vn);
+    return *this;
 }
 
-void SceneBuilder::BuildSphere(const std::string& mtl, const std::array<double, 4>& params) {
-    auto&& material = FindMaterial(mtl);
-    _scene.objects.push_back(
-            std::make_shared<Sphere>(Vec3f{params[0], params[1], params[2]}, params[3], material));
+SceneBuilder& SceneBuilder::Add(const TextureVertex& vt) {
+    _state->texture_vertices.push_back(vt);
+    return *this;
 }
 
-void SceneBuilder::BuildPolygon(const std::string& mtl, const PolygonInfo& pi) {
-    auto&& material = FindMaterial(mtl);
+SceneBuilder& SceneBuilder::Add(const Light& l) {
+    _state->lights.push_back(l);
+    return *this;
+}
 
-    if (pi.vertex.size() == 3) {
-        int idx0 = GetNormalizedIndex(pi.vertex[0].v, _state.vertex.size());
-        int idx1 = GetNormalizedIndex(pi.vertex[1].v, _state.vertex.size());
-        int idx2 = GetNormalizedIndex(pi.vertex[2].v, _state.vertex.size());
+SceneBuilder& SceneBuilder::Add(const SphereElement& s) {
+    _state->objects.push_back(
+            std::make_shared<Sphere>(s.position, s.radius, _state->material));
+    return *this;
+}
+
+SceneBuilder& SceneBuilder::Add(const FaceElement& f) {
+    auto VtoVec3f = [](const GeometricVertex& v) {
+        return Vec3f{v.x, v.y, v.z};
+    };
+
+    auto VnToVec3f = [](const VertexNormal& vn) {
+        return Vec3f{vn.i, vn.j, vn.k};
+    };
+
+    if (f.vertex.size() == 3) {
+        int idx0 = GetNormalizedIndex(f.vertex[0].v, _state->geom_vertices.size());
+        int idx1 = GetNormalizedIndex(f.vertex[1].v, _state->geom_vertices.size());
+        int idx2 = GetNormalizedIndex(f.vertex[2].v, _state->geom_vertices.size());
 
         // FIXME: If one vertex has explicit normal others should have as well
-        if (pi.vertex[0].vn) {
+        if (f.vertex[0].vn) {
             int idxn0 =
-                GetNormalizedIndex(pi.vertex[0].vn.value(), _state.vertex_normal.size());
+                GetNormalizedIndex(f.vertex[0].vn.value(), _state->vertex_normals.size());
             int idxn1 =
-                GetNormalizedIndex(pi.vertex[1].vn.value(), _state.vertex_normal.size());
+                GetNormalizedIndex(f.vertex[1].vn.value(), _state->vertex_normals.size());
             int idxn2 =
-                GetNormalizedIndex(pi.vertex[2].vn.value(), _state.vertex_normal.size());
-            _scene.objects.push_back(std::make_shared<Triangle>(
-                        std::array<Vec3f, 3>{_state.vertex[idx0], _state.vertex[idx1],
-                        _state.vertex[idx2]},
-                        ExplicitNormals{_state.vertex_normal[idxn0], _state.vertex_normal[idxn1],
-                        _state.vertex_normal[idxn2]},
-                        material));
+                GetNormalizedIndex(f.vertex[2].vn.value(), _state->vertex_normals.size());
+            _state->objects.push_back(std::make_shared<Triangle>(
+                        std::array<Vec3f, 3>{VtoVec3f(_state->geom_vertices[idx0]),
+                                             VtoVec3f(_state->geom_vertices[idx1]),
+                                             VtoVec3f(_state->geom_vertices[idx2])},
+                        ExplicitNormals{VnToVec3f(_state->vertex_normals[idxn0]),
+                                        VnToVec3f(_state->vertex_normals[idxn1]),
+                                        VnToVec3f(_state->vertex_normals[idxn2])},
+                        _state->material));
         } else {
-            _scene.objects.push_back(std::make_shared<Triangle>(
-                        std::array<Vec3f, 3>{_state.vertex[idx0], _state.vertex[idx1],
-                        _state.vertex[idx2]},
-                        material));
+            _state->objects.push_back(std::make_shared<Triangle>(
+                        std::array<Vec3f, 3>{VtoVec3f(_state->geom_vertices[idx0]),
+                                             VtoVec3f(_state->geom_vertices[idx1]),
+                                             VtoVec3f(_state->geom_vertices[idx2])},
+                        _state->material));
         }
 
-    } else if (pi.vertex.size() == 4) {
-        int idx0 = GetNormalizedIndex(pi.vertex[0].v, _state.vertex.size());
-        int idx1 = GetNormalizedIndex(pi.vertex[1].v, _state.vertex.size());
-        int idx2 = GetNormalizedIndex(pi.vertex[2].v, _state.vertex.size());
-        int idx3 = GetNormalizedIndex(pi.vertex[3].v, _state.vertex.size());
+    } else if (f.vertex.size() == 4) {
+        int idx0 = GetNormalizedIndex(f.vertex[0].v, _state->geom_vertices.size());
+        int idx1 = GetNormalizedIndex(f.vertex[1].v, _state->geom_vertices.size());
+        int idx2 = GetNormalizedIndex(f.vertex[2].v, _state->geom_vertices.size());
+        int idx3 = GetNormalizedIndex(f.vertex[3].v, _state->geom_vertices.size());
 
-        if (pi.vertex[0].vn) {
+        if (f.vertex[0].vn) {
             int idxn0 =
-                GetNormalizedIndex(pi.vertex[0].vn.value(), _state.vertex_normal.size());
+                GetNormalizedIndex(f.vertex[0].vn.value(), _state->vertex_normals.size());
             int idxn1 =
-                GetNormalizedIndex(pi.vertex[1].vn.value(), _state.vertex_normal.size());
+                GetNormalizedIndex(f.vertex[1].vn.value(), _state->vertex_normals.size());
             int idxn2 =
-                GetNormalizedIndex(pi.vertex[2].vn.value(), _state.vertex_normal.size());
+                GetNormalizedIndex(f.vertex[2].vn.value(), _state->vertex_normals.size());
             int idxn3 =
-                GetNormalizedIndex(pi.vertex[3].vn.value(), _state.vertex_normal.size());
+                GetNormalizedIndex(f.vertex[3].vn.value(), _state->vertex_normals.size());
 
-            _scene.objects.push_back(std::make_shared<Triangle>(
-                        std::array<Vec3f, 3>{_state.vertex[idx0], _state.vertex[idx1],
-                        _state.vertex[idx2]},
-                        ExplicitNormals{_state.vertex_normal[idxn0], _state.vertex_normal[idxn1],
-                        _state.vertex_normal[idxn2]},
-                        material));
+            _state->objects.push_back(std::make_shared<Triangle>(
+                        std::array<Vec3f, 3>{VtoVec3f(_state->geom_vertices[idx0]),
+                                             VtoVec3f(_state->geom_vertices[idx1]),
+                                             VtoVec3f(_state->geom_vertices[idx2])},
+                        ExplicitNormals{VnToVec3f(_state->vertex_normals[idxn0]),
+                                        VnToVec3f(_state->vertex_normals[idxn1]),
+                                        VnToVec3f(_state->vertex_normals[idxn2])},
+                        _state->material));
 
-            _scene.objects.push_back(std::make_shared<Triangle>(
-                        std::array<Vec3f, 3>{_state.vertex[idx0], _state.vertex[idx2],
-                        _state.vertex[idx3]},
-                        ExplicitNormals{_state.vertex_normal[idxn0], _state.vertex_normal[idxn2],
-                        _state.vertex_normal[idxn3]},
-                        material));
+            _state->objects.push_back(std::make_shared<Triangle>(
+                        std::array<Vec3f, 3>{VtoVec3f(_state->geom_vertices[idx0]),
+                                             VtoVec3f(_state->geom_vertices[idx2]),
+                                             VtoVec3f(_state->geom_vertices[idx3])},
+                        ExplicitNormals{VnToVec3f(_state->vertex_normals[idxn0]),
+                                        VnToVec3f(_state->vertex_normals[idxn2]),
+                                        VnToVec3f(_state->vertex_normals[idxn3])},
+                        _state->material));
 
         } else {
-            _scene.objects.push_back(std::make_shared<Triangle>(
-                        std::array<Vec3f, 3>{_state.vertex[idx0], _state.vertex[idx1],
-                        _state.vertex[idx2]},
-                        material));
+            _state->objects.push_back(std::make_shared<Triangle>(
+                        std::array<Vec3f, 3>{VtoVec3f(_state->geom_vertices[idx0]),
+                                             VtoVec3f(_state->geom_vertices[idx1]),
+                                             VtoVec3f(_state->geom_vertices[idx2])},
+                        _state->material));
 
-            _scene.objects.push_back(std::make_shared<Triangle>(
-                        std::array<Vec3f, 3>{_state.vertex[idx0], _state.vertex[idx2],
-                        _state.vertex[idx3]},
-                        material));
+            _state->objects.push_back(std::make_shared<Triangle>(
+                        std::array<Vec3f, 3>{VtoVec3f(_state->geom_vertices[idx0]),
+                                             VtoVec3f(_state->geom_vertices[idx2]),
+                                             VtoVec3f(_state->geom_vertices[idx3])},
+                        _state->material));
         }
 
     } else {
-        throw std::logic_error("Unsupported Polygon");
+        throw std::logic_error("Unsupported Face element");
     }
+    return *this;
 }
 
-const Scene& SceneBuilder::GetScene() {
-    return _scene;
-}
-
-Material SceneBuilder::FindMaterial(const std::string& name) {
-    if (auto material = _state.name2material.find(name);
-            material != _state.name2material.end()) {
-        return material->second;
-    } else {
-        throw std::logic_error("Can't find material " + name + " for sphere ");
-    }
-}
-
-int SceneBuilder::GetNormalizedIndex(int idx, int size) {
-    return idx >= 0 ? (idx - 1) : (size + idx);
+Scene SceneBuilder::Finalize() {
+    Scene scene{std::move(_state->objects), std::move(_state->lights)};
+    _state.reset(new State{});
+    return scene;
 }
