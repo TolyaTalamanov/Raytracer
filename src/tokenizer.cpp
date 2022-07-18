@@ -12,6 +12,9 @@ bool Tokenizer::IsEnd() const {
 }
 
 void Tokenizer::Next() {
+    if (!_lasttok) {
+        GetToken();
+    }
     SkipIgnored();
     _lasttok = nullptr;
 }
@@ -47,7 +50,8 @@ void Tokenizer::NextLine() {
     while (_in->peek() != '\n') {
         _in->get();
     }
-    Next();
+    SkipIgnored();
+    _lasttok = nullptr;
 }
 
 std::string Tokenizer::ParseString() {

@@ -92,7 +92,7 @@ TEST(TokenizerTests, SkipCommentsMiddle) {
 }
 
 TEST(TokenizerTests, SkipToken) {
-    std::stringstream ss{"foo42"};
+    std::stringstream ss{"foo 42"};
     Tokenizer t(&ss);
 
     t.Next();
