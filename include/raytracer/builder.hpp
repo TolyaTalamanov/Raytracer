@@ -1,7 +1,5 @@
 #pragma once
 
-#include <unordered_map>
-
 #include <raytracer/geometry.hpp>
 #include <raytracer/datatypes.hpp>
 

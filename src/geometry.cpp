@@ -1,5 +1,4 @@
 #include <raytracer/geometry.hpp>
-#include <iostream>
 
 Vec3f Ray::at(double t) const {
     return orig + dir * t;
@@ -59,26 +58,20 @@ std::optional<HitInfo> Sphere::intersect(const Ray& ray) {
     return HitInfo{phit, N, distance};
 }
 
-Triangle::Triangle(const std::vector<GeometricVertex>& v,
-                   const Material&                     m,
-                   const Triangle::OV<TextureVertex>   vt,
-                   const Triangle::OV<VertexNormal>    vn)
+Triangle::Triangle(const std::array<GeometricVertex, 3>&  v,
+                   const Material&                        m,
+                   const Triangle::OA<TextureVertex>      vt,
+                   const Triangle::OA<VertexNormal>       vn)
     : Object(m), geom_vertices(v), texture_vertices(vt), vertex_normals(vn) {
-}
-
-Triangle::Triangle(const std::array<Vec3f, 3>& pts, const Material m)
-    : Object(m), v0(pts[0]), v1(pts[1]), v2(pts[2]) {
-}
-
-Triangle::Triangle(const std::array<Vec3f, 3>& pts,
-                   const ExplicitNormals& normals,
-                   const Material m)
-    : Object(m), v0(pts[0]), v1(pts[1]), v2(pts[2]), has_normals(normals) {
 }
 
 std::optional<HitInfo> Triangle::intersect(const Ray& ray) {
     constexpr double kEpsilon = 1e-8;
     double u, v, w;
+
+    Vec3f v0{geom_vertices[0].x, geom_vertices[0].y, geom_vertices[0].z};
+    Vec3f v1{geom_vertices[1].x, geom_vertices[1].y, geom_vertices[1].z};
+    Vec3f v2{geom_vertices[2].x, geom_vertices[2].y, geom_vertices[2].z};
 
     Vec3f v0v1 = v1 - v0;
     Vec3f v0v2 = v2 - v0;
@@ -116,11 +109,21 @@ std::optional<HitInfo> Triangle::intersect(const Ray& ray) {
     Vec3f N = v0v1.cross(v0v2).normalize();
 
     w = (1 - u - v);
-    if (has_normals) {
-        auto normals = has_normals.value();
-        N = (u * normals.v0n.normalize() +
-             v * normals.v1n.normalize() +
-             w * normals.v2n.normalize()).normalize();
+    //if (has_normals) {
+        //auto normals = has_normals.value();
+        //N = (u * normals.v0n.normalize() +
+             //v * normals.v1n.normalize() +
+             //w * normals.v2n.normalize()).normalize();
+    //}
+    if (vertex_normals) {
+        const auto& normals = vertex_normals.value();
+        Vec3f v0n{normals[0].i, normals[0].j, normals[0].k};
+        Vec3f v1n{normals[1].i, normals[1].j, normals[1].k};
+        Vec3f v2n{normals[2].i, normals[2].j, normals[2].k};
+
+        N = (u * v0n.normalize() +
+             v * v1n.normalize() +
+             w * v2n.normalize()).normalize();
     }
 
     return HitInfo{P, N, t};

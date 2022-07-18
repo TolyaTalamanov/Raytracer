@@ -38,93 +38,39 @@ SceneBuilder& SceneBuilder::Add(const SphereElement& s) {
 }
 
 SceneBuilder& SceneBuilder::Add(const FaceElement& f) {
-    auto VtoVec3f = [](const GeometricVertex& v) {
-        return Vec3f{v.x, v.y, v.z};
-    };
+    if (f.vertices.size() != 3u && f.vertices.size() != 4u) {
+        throw std::logic_error("Only 3 or 4 vertex face elements are supported!");
+    }
 
-    auto VnToVec3f = [](const VertexNormal& vn) {
-        return Vec3f{vn.i, vn.j, vn.k};
-    };
+    std::vector<int> indices;
+    for (int i = 0; i < f.vertices.size(); ++i) {
+        indices.push_back(GetNormalizedIndex(f.vertices[i].v, _state->geom_vertices.size()));
+    }
 
-    if (f.vertex.size() == 3) {
-        int idx0 = GetNormalizedIndex(f.vertex[0].v, _state->geom_vertices.size());
-        int idx1 = GetNormalizedIndex(f.vertex[1].v, _state->geom_vertices.size());
-        int idx2 = GetNormalizedIndex(f.vertex[2].v, _state->geom_vertices.size());
-
-        // FIXME: If one vertex has explicit normal others should have as well
-        if (f.vertex[0].vn) {
-            int idxn0 =
-                GetNormalizedIndex(f.vertex[0].vn.value(), _state->vertex_normals.size());
-            int idxn1 =
-                GetNormalizedIndex(f.vertex[1].vn.value(), _state->vertex_normals.size());
-            int idxn2 =
-                GetNormalizedIndex(f.vertex[2].vn.value(), _state->vertex_normals.size());
-            _state->objects.push_back(std::make_shared<Triangle>(
-                        std::array<Vec3f, 3>{VtoVec3f(_state->geom_vertices[idx0]),
-                                             VtoVec3f(_state->geom_vertices[idx1]),
-                                             VtoVec3f(_state->geom_vertices[idx2])},
-                        ExplicitNormals{VnToVec3f(_state->vertex_normals[idxn0]),
-                                        VnToVec3f(_state->vertex_normals[idxn1]),
-                                        VnToVec3f(_state->vertex_normals[idxn2])},
-                        _state->material));
-        } else {
-            _state->objects.push_back(std::make_shared<Triangle>(
-                        std::array<Vec3f, 3>{VtoVec3f(_state->geom_vertices[idx0]),
-                                             VtoVec3f(_state->geom_vertices[idx1]),
-                                             VtoVec3f(_state->geom_vertices[idx2])},
-                        _state->material));
+    // FIXME: 2 iteration maximum, reorganize this loop.
+    for (int i = 0; i < f.vertices.size()-2; ++i) {
+        std::array<GeometricVertex, 3> v = {_state->geom_vertices[indices[0  ]],
+                                            _state->geom_vertices[indices[i+1]],
+                                            _state->geom_vertices[indices[i+2]]};
+        std::optional<std::array<TextureVertex, 3>> vt;
+        if (f.vertices[0].vt) {
+            auto i0 = GetNormalizedIndex(f.vertices[0  ].vt.value(), _state->texture_vertices.size());
+            auto i1 = GetNormalizedIndex(f.vertices[i+1].vt.value(), _state->texture_vertices.size());
+            auto i2 = GetNormalizedIndex(f.vertices[i+2].vt.value(), _state->texture_vertices.size());
+            vt = std::make_optional(std::array<TextureVertex, 3>{_state->texture_vertices[i0],
+                                                                 _state->texture_vertices[i1],
+                                                                 _state->texture_vertices[i2]});
         }
-
-    } else if (f.vertex.size() == 4) {
-        int idx0 = GetNormalizedIndex(f.vertex[0].v, _state->geom_vertices.size());
-        int idx1 = GetNormalizedIndex(f.vertex[1].v, _state->geom_vertices.size());
-        int idx2 = GetNormalizedIndex(f.vertex[2].v, _state->geom_vertices.size());
-        int idx3 = GetNormalizedIndex(f.vertex[3].v, _state->geom_vertices.size());
-
-        if (f.vertex[0].vn) {
-            int idxn0 =
-                GetNormalizedIndex(f.vertex[0].vn.value(), _state->vertex_normals.size());
-            int idxn1 =
-                GetNormalizedIndex(f.vertex[1].vn.value(), _state->vertex_normals.size());
-            int idxn2 =
-                GetNormalizedIndex(f.vertex[2].vn.value(), _state->vertex_normals.size());
-            int idxn3 =
-                GetNormalizedIndex(f.vertex[3].vn.value(), _state->vertex_normals.size());
-
-            _state->objects.push_back(std::make_shared<Triangle>(
-                        std::array<Vec3f, 3>{VtoVec3f(_state->geom_vertices[idx0]),
-                                             VtoVec3f(_state->geom_vertices[idx1]),
-                                             VtoVec3f(_state->geom_vertices[idx2])},
-                        ExplicitNormals{VnToVec3f(_state->vertex_normals[idxn0]),
-                                        VnToVec3f(_state->vertex_normals[idxn1]),
-                                        VnToVec3f(_state->vertex_normals[idxn2])},
-                        _state->material));
-
-            _state->objects.push_back(std::make_shared<Triangle>(
-                        std::array<Vec3f, 3>{VtoVec3f(_state->geom_vertices[idx0]),
-                                             VtoVec3f(_state->geom_vertices[idx2]),
-                                             VtoVec3f(_state->geom_vertices[idx3])},
-                        ExplicitNormals{VnToVec3f(_state->vertex_normals[idxn0]),
-                                        VnToVec3f(_state->vertex_normals[idxn2]),
-                                        VnToVec3f(_state->vertex_normals[idxn3])},
-                        _state->material));
-
-        } else {
-            _state->objects.push_back(std::make_shared<Triangle>(
-                        std::array<Vec3f, 3>{VtoVec3f(_state->geom_vertices[idx0]),
-                                             VtoVec3f(_state->geom_vertices[idx1]),
-                                             VtoVec3f(_state->geom_vertices[idx2])},
-                        _state->material));
-
-            _state->objects.push_back(std::make_shared<Triangle>(
-                        std::array<Vec3f, 3>{VtoVec3f(_state->geom_vertices[idx0]),
-                                             VtoVec3f(_state->geom_vertices[idx2]),
-                                             VtoVec3f(_state->geom_vertices[idx3])},
-                        _state->material));
+        std::optional<std::array<VertexNormal, 3>> vn;
+        if (f.vertices[0].vn) {
+            auto i0 = GetNormalizedIndex(f.vertices[0  ].vn.value(), _state->vertex_normals.size());
+            auto i1 = GetNormalizedIndex(f.vertices[i+1].vn.value(), _state->vertex_normals.size());
+            auto i2 = GetNormalizedIndex(f.vertices[i+2].vn.value(), _state->vertex_normals.size());
+            vn = std::make_optional(std::array<VertexNormal, 3>{_state->vertex_normals[i0],
+                                                                _state->vertex_normals[i1],
+                                                                _state->vertex_normals[i2]});
         }
-
-    } else {
-        throw std::logic_error("Unsupported Face element");
+        _state->objects.push_back(std::make_shared<Triangle>(v, _state->material, vt, vn));
     }
     return *this;
 }

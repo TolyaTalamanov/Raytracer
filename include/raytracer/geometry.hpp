@@ -52,7 +52,7 @@ struct FaceVertex {
 // NB: Specifies a face element and its vertex reference number. You can
 // optionally include the texture vertex and vertex normal reference numbers.
 struct FaceElement {
-    std::vector<FaceVertex> vertex;
+    std::vector<FaceVertex> vertices;
 };
 
 struct SphereElement {
@@ -129,24 +129,18 @@ private:
 class Triangle : public Object {
 public:
     template <typename T>
-    using OV = std::optional<std::vector<T>>;
+    using OA = std::optional<std::array<T, 3>>;
 
-    Triangle(const std::vector<GeometricVertex>& v,
+    Triangle(const std::array<GeometricVertex, 3>& v,
              const Material&                     m  = {},
-             const OV<TextureVertex>             vt = {},
-             const OV<VertexNormal>              vn = {});
-
-    Triangle(const std::array<Vec3f, 3>& pts, const Material m = {});
-    Triangle(const std::array<Vec3f, 3>& pts,
-             const ExplicitNormals& normals,
-             const Material m = {});
+             const OA<TextureVertex>             vt = {},
+             const OA<VertexNormal>              vn = {});
 
     std::optional<HitInfo> intersect(const Ray& ray) override;
 private:
-    std::vector<GeometricVertex> geom_vertices;
-    OV<TextureVertex>            texture_vertices;
-    OV<VertexNormal>             vertex_normals;
-
+    std::array<GeometricVertex, 3> geom_vertices;
+    OA<TextureVertex>              texture_vertices;
+    OA<VertexNormal>               vertex_normals;
 
     Vec3f v0, v1, v2;
     std::optional<ExplicitNormals> has_normals;

@@ -1,4 +1,5 @@
 #include <unordered_set>
+#include <unordered_map>
 
 #include <cassert>
 
@@ -55,6 +56,30 @@ static GeometricVertex ParseGeometricVertex(Tokenizer* t) {
     }
 
     return gv;
+}
+
+static TextureVertex ParseTextureVertex(Tokenizer* t) {
+    TextureVertex vt;
+    // Parse u
+    auto tok = t->GetToken();
+    if (!std::holds_alternative<Tokenizer::Double>(tok)) {
+        throw std::logic_error("Vertex texture (vt) must contain u v* w* coordinates but v is missing!");
+    }
+    vt.u = std::get<Tokenizer::Double>(tok).val;
+    t->Next();
+    // Parse v
+    tok = t->GetToken();
+    if (std::holds_alternative<Tokenizer::Double>(tok)) {
+        vt.v = std::get<Tokenizer::Double>(tok).val;
+        t->Next();
+        // Parse w
+        tok = t->GetToken();
+        if (std::holds_alternative<Tokenizer::Double>(tok)) {
+            vt.w = std::get<Tokenizer::Double>(tok).val;
+            t->Next();
+        }
+    }
+    return vt;
 }
 
 static VertexNormal ParseVertexNormal(Tokenizer* t) {
@@ -222,7 +247,7 @@ static FaceElement ParseFaceElement(Tokenizer* tokenizer) {
         }
 
         auto tv = ParseFaceVertex(tokenizer);
-        fe.vertex.push_back(tv);
+        fe.vertices.push_back(tv);
 
         if (tokenizer->IsEnd()) {
             return fe;
@@ -285,8 +310,7 @@ Scene Parse(std::istream* stream, const std::string& mtldir) {
         } else if (keyword == "vn") {
             builder.Add(ParseVertexNormal(&tokenizer));
         } else if (keyword == "vt") {
-            auto coords = ParseConstants<double, 3>(&tokenizer);
-            //builder.Add(ParseTextureVertex(&tokenizer));
+            builder.Add(ParseTextureVertex(&tokenizer));
         } else if (keyword == "f") {
             builder.Add(ParseFaceElement(&tokenizer));
         } else if (keyword == "P") {
