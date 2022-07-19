@@ -2,30 +2,94 @@
 
 #include <stdexcept>
 
-//#include <jpeglib.h>
 #include <png.h>
+#include <jpeglib.h>
 
-Image::Image(int width, int height) {
+struct Image::Impl {
+    ~Impl();
+
+    int width, height;
+    png_bytep* bytes;
+};
+
+Image::Impl::~Impl() {
+    for (int i = 0; i < height; ++i) {
+        free(bytes[i]);
+    }
+    free(bytes);
+}
+
+Image::Image()
+    : _impl(new Impl{}) {
+};
+
+Image::Image(int width, int height) : Image() {
     PrepareImage(width, height);
 }
 
-Image::Image(const std::string& filename) {
+Image::Image(const std::string& filename) : Image() {
     if (filename.find(".png") != std::string::npos) {
         ReadPng(filename);
+    } else if (filename.find(".jpg") != std::string::npos) {
+        ReadJpg(filename);
     } else {
-        //ReadJpg(filename);
+        throw std::logic_error("Only *.png files are supported");
     }
 }
 
+void Image::ReadJpg(const std::string& filename) {
+    struct jpeg_decompress_struct cinfo;
+    struct jpeg_error_mgr err;
+    FILE* infile = fopen(filename.c_str(), "rb");
+
+    if (!infile) {
+        throw std::runtime_error("Can't open " + filename);
+    }
+
+    cinfo.err = jpeg_std_error(&err);
+    jpeg_create_decompress(&cinfo);
+    jpeg_stdio_src(&cinfo, infile);
+
+    (void)jpeg_read_header(&cinfo, true);
+    (void)jpeg_start_decompress(&cinfo);
+
+    int row_stride = cinfo.output_width * cinfo.output_components;
+    JSAMPARRAY buffer = (*cinfo.mem->alloc_sarray)(reinterpret_cast<j_common_ptr>(&cinfo),
+                                                   JPOOL_IMAGE, row_stride, 1);
+
+    PrepareImage(cinfo.output_width, cinfo.output_height);
+    size_t y = 0;
+
+    while (cinfo.output_scanline < cinfo.output_height) {
+        (void)jpeg_read_scanlines(&cinfo, buffer, 1);
+        for (int x = 0; x < Width(); ++x) {
+            RGB pixel;
+            if (cinfo.output_components == 3) {
+                pixel.r = buffer[0][x * 3];
+                pixel.g = buffer[0][x * 3 + 1];
+                pixel.b = buffer[0][x * 3 + 2];
+            } else {
+                pixel.r = pixel.g = pixel.b = buffer[0][x];
+            }
+            SetPixel(pixel, y, x);
+        }
+        ++y;
+    }
+
+    (void)jpeg_finish_decompress(&cinfo);
+    jpeg_destroy_decompress(&cinfo);
+    fclose(infile);
+}
+
 void Image::PrepareImage(int width, int height) {
-    height_ = height;
-    width_ = width;
-    bytes_ = static_cast<png_bytep*>(malloc(sizeof(png_bytep) * height_));
-    for (int y = 0; y < height_; y++) {
-        bytes_[y] = static_cast<png_byte*>(malloc(width_ * sizeof(png_byte) * 4));
-        for (int x = 0; x < width_; ++x) {
-            bytes_[y][x * 4] = bytes_[y][x * 4 + 1] = bytes_[y][x * 4 + 2] = 0;
-            bytes_[y][x * 4 + 3] = 255;
+    _impl->height = height;
+    _impl->width  = width;
+    _impl->bytes = static_cast<png_bytep*>(malloc(sizeof(png_bytep) * _impl->height));
+    for (int y = 0; y < _impl->height; y++) {
+        _impl->bytes[y] = static_cast<png_byte*>(malloc(_impl->width * sizeof(png_byte) * 4));
+        for (int x = 0; x < _impl->width; ++x) {
+            _impl->bytes[y][x * 4] = _impl->bytes[y][x * 4 + 1] = _impl->bytes[y][x * 4 + 2] = 0;
+            _impl->bytes[y][x * 4 + 3] = 255;
         }
     }
 }
@@ -53,8 +117,8 @@ void Image::ReadPng(const std::string& filename) {
 
     png_read_info(png, info);
 
-    width_ = png_get_image_width(png, info);
-    height_ = png_get_image_height(png, info);
+    _impl->width = png_get_image_width(png, info);
+    _impl->height = png_get_image_height(png, info);
     png_byte color_type = png_get_color_type(png, info);
     png_byte bit_depth = png_get_bit_depth(png, info);
 
@@ -90,58 +154,14 @@ void Image::ReadPng(const std::string& filename) {
 
     png_read_update_info(png, info);
 
-    bytes_ = static_cast<png_bytep*>(malloc(sizeof(png_bytep) * height_));
-    for (int y = 0; y < height_; y++) {
-        bytes_[y] = static_cast<png_byte*>(malloc(png_get_rowbytes(png, info)));
+    _impl->bytes = static_cast<png_bytep*>(malloc(sizeof(png_bytep) * _impl->height));
+    for (int y = 0; y < _impl->height; y++) {
+        _impl->bytes[y] = static_cast<png_byte*>(malloc(png_get_rowbytes(png, info)));
     }
 
-    png_read_image(png, bytes_);
+    png_read_image(png, _impl->bytes);
     png_destroy_read_struct(&png, &info, nullptr);
     fclose(fp);
-}
-
-void Image::ReadJpg(const std::string& filename) {
-    //struct jpeg_decompress_struct cinfo;
-    //struct jpeg_error_mgr err;
-    //FILE* infile = fopen(filename.c_str(), "rb");
-
-    //if (!infile) {
-        //throw std::runtime_error("Can't open " + filename);
-    //}
-
-    //cinfo.err = jpeg_std_error(&err);
-    //jpeg_create_decompress(&cinfo);
-    //jpeg_stdio_src(&cinfo, infile);
-
-    //(void)jpeg_read_header(&cinfo, true);
-    //(void)jpeg_start_decompress(&cinfo);
-
-    //int row_stride = cinfo.output_width * cinfo.output_components;
-    //JSAMPARRAY buffer = (*cinfo.mem->alloc_sarray)(reinterpret_cast<j_common_ptr>(&cinfo),
-            //JPOOL_IMAGE, row_stride, 1);
-
-    //PrepareImage(cinfo.output_width, cinfo.output_height);
-    //size_t y = 0;
-
-    //while (cinfo.output_scanline < cinfo.output_height) {
-        //(void)jpeg_read_scanlines(&cinfo, buffer, 1);
-        //for (int x = 0; x < Width(); ++x) {
-            //RGB pixel;
-            //if (cinfo.output_components == 3) {
-                //pixel.r = buffer[0][x * 3];
-                //pixel.g = buffer[0][x * 3 + 1];
-                //pixel.b = buffer[0][x * 3 + 2];
-            //} else {
-                //pixel.r = pixel.g = pixel.b = buffer[0][x];
-            //}
-            //SetPixel(pixel, y, x);
-        //}
-        //++y;
-    //}
-
-    //(void)jpeg_finish_decompress(&cinfo);
-    //jpeg_destroy_decompress(&cinfo);
-    //fclose(infile);
 }
 
 void Image::Write(const std::string& filename) {
@@ -167,7 +187,7 @@ void Image::Write(const std::string& filename) {
     png_init_io(png, fp);
 
     // Output is 8bit depth, RGBA format.
-    png_set_IHDR(png, info, width_, height_, 8, PNG_COLOR_TYPE_RGBA, PNG_INTERLACE_NONE,
+    png_set_IHDR(png, info, _impl->width, _impl->height, 8, PNG_COLOR_TYPE_RGBA, PNG_INTERLACE_NONE,
             PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
     png_write_info(png, info);
 
@@ -175,7 +195,7 @@ void Image::Write(const std::string& filename) {
     // Use png_set_filler().
     // png_set_filler(png, 0, PNG_FILLER_AFTER);
 
-    png_write_image(png, bytes_);
+    png_write_image(png, _impl->bytes);
     png_write_end(png, nullptr);
 
     fclose(fp);
@@ -183,13 +203,13 @@ void Image::Write(const std::string& filename) {
 }
 
 RGB Image::GetPixel(int y, int x) const {
-    auto row = bytes_[y];
+    auto row = _impl->bytes[y];
     auto px = &row[x * 4];
     return RGB{px[0], px[1], px[2]};
 }
 
 void Image::SetPixel(const RGB& pixel, int y, int x) {
-    auto row = bytes_[y];
+    auto row = _impl->bytes[y];
     auto px = &row[x * 4];
     px[0] = pixel.r;
     px[1] = pixel.g;
@@ -197,16 +217,9 @@ void Image::SetPixel(const RGB& pixel, int y, int x) {
 }
 
 int Image::Height() const {
-    return height_;
+    return _impl->height;
 }
 
 int Image::Width() const {
-    return width_;
-}
-
-Image::~Image() {
-    for (int i = 0; i < height_; ++i) {
-        free(bytes_[i]);
-    }
-    free(bytes_);
+    return _impl->width;
 }

@@ -8,6 +8,7 @@
 
 #include "datatypes.hpp"
 #include "options.hpp"
+#include "image.hpp"
 
 // NB: http://paulbourke.net/dataformats/obj/
 
@@ -91,12 +92,19 @@ struct Material {
     double Ns    = 0;
     int    illum = 0;
     double Ni    = 1;
+
+    std::optional<Image> map_Kd;
+    std::optional<Image> map_Ka;
+    std::optional<Image> map_bump;
 };
 
 struct HitInfo {
     Vec3f  position;
     Vec3f  normal;
     double distance;
+
+    std::optional<Vec3f> texture_Kd;
+    std::optional<Vec3f> texture_Ka;
 };
 
 class Object {
@@ -110,7 +118,7 @@ public:
     virtual std::optional<HitInfo> intersect(const Ray& ray) = 0;
     const Material& GetMaterial() const;
 
-private:
+protected:
     Material material;
 };
 using Objects = std::vector<Object::Ptr>;
@@ -158,3 +166,13 @@ Vec3f Trace(const Ray&     ray,
             const Options& options,
             int            depth   = 0,
             bool           outside = true);
+
+Vec3f CalculateBarycentric(const Vec3f& a,
+                           const Vec3f& b,
+                           const Vec3f& c,
+                           const Vec3f& p);
+
+Vec3f CalculateAffine(const Vec3f& a,
+                      const Vec3f& b,
+                      const Vec3f& c,
+                      const Vec3f& uvw);

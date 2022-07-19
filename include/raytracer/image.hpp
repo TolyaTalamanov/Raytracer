@@ -1,8 +1,7 @@
 #pragma once
 
 #include <string>
-// FIXME REMOVE FROM PUBLIC HEADER
-#include <png.h>
+#include <memory>
 
 struct RGB {
     int r, g, b;
@@ -13,6 +12,7 @@ struct RGB {
 
 class Image {
 public:
+    Image();
     explicit Image(const std::string& filename);
     Image(int width, int height);
 
@@ -23,13 +23,11 @@ public:
     int Height()               const;
     int Width()                const;
 
-    ~Image();
-
 private:
     void PrepareImage(int width, int height);
     void ReadPng(const std::string& filename);
     void ReadJpg(const std::string& filename);
 
-    int width_, height_;
-    png_bytep* bytes_;
+    struct Impl;
+    std::shared_ptr<Impl> _impl;
 };

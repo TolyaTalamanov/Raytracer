@@ -1,4 +1,5 @@
 #include <raytracer/geometry.hpp>
+#include <iostream>
 
 Vec3f Ray::at(double t) const {
     return orig + dir * t;
@@ -6,6 +7,30 @@ Vec3f Ray::at(double t) const {
 
 Light::Light(const Vec3f& p, const Vec3f& i)
     : position(p), intensity(i) {
+}
+
+Vec3f CalculateBarycentric(const Vec3f& a,
+                           const Vec3f& b,
+                           const Vec3f& c,
+                           const Vec3f& p) {
+    Vec3f v0 = b - a, v1 = c - a, v2 = p - a;
+    double d00 = v0.dot(v0);
+    double d01 = v0.dot(v1);
+    double d11 = v1.dot(v1);
+    double d20 = v2.dot(v0);
+    double d21 = v2.dot(v1);
+    double denom = d00 * d11 - d01 * d01;
+    double v = (d11 * d20 - d01 * d21) / denom;
+    double w = (d00 * d21 - d01 * d20) / denom;
+    double u = 1.0f - v - w;
+    return {u, v, w};
+}
+
+Vec3f CalculateAffine(const Vec3f& a,
+                      const Vec3f& b,
+                      const Vec3f& c,
+                      const Vec3f& uvw) {
+    return a * uvw.x + b * uvw.y + c * uvw.z;
 }
 
 const Material& Object::GetMaterial() const {
@@ -109,12 +134,6 @@ std::optional<HitInfo> Triangle::intersect(const Ray& ray) {
     Vec3f N = v0v1.cross(v0v2).normalize();
 
     w = (1 - u - v);
-    //if (has_normals) {
-        //auto normals = has_normals.value();
-        //N = (u * normals.v0n.normalize() +
-             //v * normals.v1n.normalize() +
-             //w * normals.v2n.normalize()).normalize();
-    //}
     if (vertex_normals) {
         const auto& normals = vertex_normals.value();
         Vec3f v0n{normals[0].i, normals[0].j, normals[0].k};
@@ -126,7 +145,38 @@ std::optional<HitInfo> Triangle::intersect(const Ray& ray) {
              w * v2n.normalize()).normalize();
     }
 
-    return HitInfo{P, N, t};
+    HitInfo hit{P, N, t};
+    if (texture_vertices) {
+        const auto  bary = CalculateBarycentric(v0, v1, v2, P);
+        const auto& vts  = texture_vertices.value();
+        Vec3f vt0{vts[0].u, vts[0].v, vts[0].w};
+        Vec3f vt1{vts[1].u, vts[1].v, vts[1].w};
+        Vec3f vt2{vts[2].u, vts[2].v, vts[2].w};
+        const auto affine = CalculateAffine(vt0, vt1, vt2, bary);
+
+        auto extract_texture_pixel = [](const Image& texture,
+                                        const Vec3f& affine) {
+            const auto W = texture.Width();
+            const auto H = texture.Height();
+            const auto x = static_cast<int>(affine.x * W);
+            const auto y = static_cast<int>(affine.y * H);
+            const auto pixel = texture.GetPixel(H-y-1, x);
+            return Vec3f{std::pow(pixel.r / 255.0, 2.2),
+                         std::pow(pixel.g / 255.0, 2.2),
+                         std::pow(pixel.b / 255.0, 2.2)};
+        };
+
+        if (material.map_Kd) {
+            hit.texture_Kd =
+                extract_texture_pixel(material.map_Kd.value(), affine);
+        }
+        if (material.map_Ka) {
+            hit.texture_Kd =
+                extract_texture_pixel(material.map_Kd.value(), affine);
+        }
+    }
+
+    return hit;
 }
 
 static double clamp(double lower, double upper, double value) {
@@ -206,6 +256,16 @@ Vec3f Trace(const Ray&     ray,
 
     Vec3f vE = (ray.orig - info.position).normalize();
 
+    Vec3f Kd = material.Kd;
+    if (info.texture_Kd) {
+        Kd = Kd * info.texture_Kd.value();
+    }
+
+    Vec3f Ka = material.Ka;
+    if (info.texture_Ka) {
+        Ka = Ka * info.texture_Ka.value();
+    }
+
     if (material.illum > 2) {
         double bias = 0.001;
         if (outside) {
@@ -218,7 +278,7 @@ Vec3f Trace(const Ray&     ray,
             auto refldiffuse = reflc * std::max(0.0, newN.dot(refldir));
             auto reflspecular = reflc * std::pow(std::max(0.0, vR.dot(vE)), material.Ns);
 
-            Icomp += (material.Kd * refldiffuse) + (material.Ks * reflspecular);
+            Icomp += (Kd * refldiffuse) + (material.Ks * reflspecular);
         }
         // NB: Refraction
         double Tr  = outside ? material.Tr : 1.0;
@@ -260,6 +320,6 @@ Vec3f Trace(const Ray&     ray,
         diffuse  += light.intensity * std::max(0.0, newN.dot(vL));
         specular += light.intensity * std::pow(std::max(0.0, vR.dot(vE)), material.Ns);
     }
-    Ibase += material.Ka + material.Ke + (material.Kd * diffuse) + (material.Ks * specular);
+    Ibase += Ka + material.Ke + Kd * diffuse + (material.Ks * specular);
     return Ibase + Icomp;
 }
