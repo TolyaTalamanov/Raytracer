@@ -158,3 +158,13 @@ Vec3f Trace(const Ray&     ray,
             const Options& options,
             int            depth   = 0,
             bool           outside = true);
+
+Vec3f CalculateBarycentric(const Vec3f& a,
+                           const Vec3f& b,
+                           const Vec3f& c,
+                           const Vec3f& p);
+
+Vec3f CalculateAffine(const Vec3f& a,
+                      const Vec3f& b,
+                      const Vec3f& c,
+                      const Vec3f& uvw);

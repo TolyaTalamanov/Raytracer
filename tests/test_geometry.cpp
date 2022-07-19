@@ -48,3 +48,17 @@ TEST(Geometry, Refraction) {
     EXPECT_NEAR(-0.771362, refract.y, 1e-6);
     EXPECT_DOUBLE_EQ(0.0      , refract.z);
 }
+
+TEST(Geometry, Barycentric) {
+    auto on_edge = CalculateBarycentric({0, 0, 0}, {2, 0, 0}, {0, 2, 0}, {1, 1, 0});
+    EXPECT_DOUBLE_EQ(0.5, on_edge.y);
+    EXPECT_DOUBLE_EQ(0.5, on_edge.z);
+
+    auto on_vertex = CalculateBarycentric({0, 0, 0}, {2, 0, 0}, {0, 2, 0}, {2, 0, 0});
+    EXPECT_DOUBLE_EQ(1, on_vertex.y);
+
+    auto inside = CalculateBarycentric({0, 0, 0}, {2, 0, 0}, {0, 2, 0}, {0.2, 0.2, 0});
+    EXPECT_DOUBLE_EQ(0.8, inside.x);
+    EXPECT_DOUBLE_EQ(0.1, inside.y);
+    EXPECT_DOUBLE_EQ(0.1, inside.z);
+}

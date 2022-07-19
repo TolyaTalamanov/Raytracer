@@ -8,6 +8,30 @@ Light::Light(const Vec3f& p, const Vec3f& i)
     : position(p), intensity(i) {
 }
 
+Vec3f CalculateBarycentric(const Vec3f& a,
+                           const Vec3f& b,
+                           const Vec3f& c,
+                           const Vec3f& p) {
+    Vec3f v0 = b - a, v1 = c - a, v2 = p - a;
+    double d00 = v0.dot(v0);
+    double d01 = v0.dot(v1);
+    double d11 = v1.dot(v1);
+    double d20 = v2.dot(v0);
+    double d21 = v2.dot(v1);
+    double denom = d00 * d11 - d01 * d01;
+    double v = (d11 * d20 - d01 * d21) / denom;
+    double w = (d00 * d21 - d01 * d20) / denom;
+    double u = 1.0f - v - w;
+    return {u, v, w};
+}
+
+Vec3f CalculateAffine(const Vec3f& a,
+                      const Vec3f& b,
+                      const Vec3f& c,
+                      const Vec3f& uvw) {
+    return a * uvw.x + b * uvw.y + c * uvw.z;
+}
+
 const Material& Object::GetMaterial() const {
     return material;
 }
@@ -109,12 +133,6 @@ std::optional<HitInfo> Triangle::intersect(const Ray& ray) {
     Vec3f N = v0v1.cross(v0v2).normalize();
 
     w = (1 - u - v);
-    //if (has_normals) {
-        //auto normals = has_normals.value();
-        //N = (u * normals.v0n.normalize() +
-             //v * normals.v1n.normalize() +
-             //w * normals.v2n.normalize()).normalize();
-    //}
     if (vertex_normals) {
         const auto& normals = vertex_normals.value();
         Vec3f v0n{normals[0].i, normals[0].j, normals[0].k};
