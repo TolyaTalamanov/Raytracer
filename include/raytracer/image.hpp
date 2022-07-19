@@ -26,6 +26,7 @@ public:
 private:
     void PrepareImage(int width, int height);
     void ReadPng(const std::string& filename);
+    void ReadJpg(const std::string& filename);
 
     struct Impl;
     std::shared_ptr<Impl> _impl;

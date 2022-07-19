@@ -3,6 +3,7 @@
 #include <stdexcept>
 
 #include <png.h>
+#include <jpeglib.h>
 
 struct Image::Impl {
     ~Impl();
@@ -27,10 +28,57 @@ Image::Image(int width, int height) : Image() {
 }
 
 Image::Image(const std::string& filename) : Image() {
-    if (filename.find(".png") == std::string::npos) {
+    if (filename.find(".png") != std::string::npos) {
+        ReadPng(filename);
+    } else if (filename.find(".jpg") != std::string::npos) {
+        ReadJpg(filename);
+    } else {
         throw std::logic_error("Only *.png files are supported");
     }
-    ReadPng(filename);
+}
+
+void Image::ReadJpg(const std::string& filename) {
+    struct jpeg_decompress_struct cinfo;
+    struct jpeg_error_mgr err;
+    FILE* infile = fopen(filename.c_str(), "rb");
+
+    if (!infile) {
+        throw std::runtime_error("Can't open " + filename);
+    }
+
+    cinfo.err = jpeg_std_error(&err);
+    jpeg_create_decompress(&cinfo);
+    jpeg_stdio_src(&cinfo, infile);
+
+    (void)jpeg_read_header(&cinfo, true);
+    (void)jpeg_start_decompress(&cinfo);
+
+    int row_stride = cinfo.output_width * cinfo.output_components;
+    JSAMPARRAY buffer = (*cinfo.mem->alloc_sarray)(reinterpret_cast<j_common_ptr>(&cinfo),
+                                                   JPOOL_IMAGE, row_stride, 1);
+
+    PrepareImage(cinfo.output_width, cinfo.output_height);
+    size_t y = 0;
+
+    while (cinfo.output_scanline < cinfo.output_height) {
+        (void)jpeg_read_scanlines(&cinfo, buffer, 1);
+        for (int x = 0; x < Width(); ++x) {
+            RGB pixel;
+            if (cinfo.output_components == 3) {
+                pixel.r = buffer[0][x * 3];
+                pixel.g = buffer[0][x * 3 + 1];
+                pixel.b = buffer[0][x * 3 + 2];
+            } else {
+                pixel.r = pixel.g = pixel.b = buffer[0][x];
+            }
+            SetPixel(pixel, y, x);
+        }
+        ++y;
+    }
+
+    (void)jpeg_finish_decompress(&cinfo);
+    jpeg_destroy_decompress(&cinfo);
+    fclose(infile);
 }
 
 void Image::PrepareImage(int width, int height) {

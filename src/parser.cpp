@@ -178,6 +178,16 @@ static void ParseNewmtl(Tokenizer* tokenizer,
             assert(std::holds_alternative<Tokenizer::String>(tok));
             mtl.map_Kd = std::make_optional(Image(dir + "/" + std::get<Tokenizer::String>(tok).str));
             tokenizer->Next();
+        } else if (param == "map_Ka") {
+            tok = tokenizer->GetToken();
+            assert(std::holds_alternative<Tokenizer::String>(tok));
+            mtl.map_Ka = std::make_optional(Image(dir + "/" + std::get<Tokenizer::String>(tok).str));
+            tokenizer->Next();
+        } else if (param == "map_bump") {
+            tok = tokenizer->GetToken();
+            assert(std::holds_alternative<Tokenizer::String>(tok));
+            mtl.map_bump = std::make_optional(Image(dir + "/" + std::get<Tokenizer::String>(tok).str));
+            tokenizer->Next();
         } else {
             throw std::logic_error("Unsupported newmtl parameter : " + param);
         }
@@ -205,13 +215,13 @@ static void ParseMtlFile(const std::string& filename,
 }
 
 static FaceVertex ParseFaceVertex(Tokenizer* tokenizer) {
-    // Format: v/vt/vn
+    // * - optional. Format: v/vt*/vn*
     FaceVertex fv;
 
     // Parse v
     auto tok = tokenizer->GetToken();
     if (!std::holds_alternative<Tokenizer::Double>(tok)) {
-        throw std::logic_error("Triangle vertex should contain constant in the beginning");
+        throw std::logic_error("Face element (polygon) vertex must contain at least geometric vertex");
     }
     fv.v = std::get<Tokenizer::Double>(tok).val;
     tokenizer->Next();
@@ -226,18 +236,17 @@ static FaceVertex ParseFaceVertex(Tokenizer* tokenizer) {
     // Parse vt
     if (std::holds_alternative<Tokenizer::Double>(tok)) {
         fv.vt = std::get<Tokenizer::Double>(tok).val;
-        // Skip next slash
         tokenizer->Next();
-        tok = tokenizer->GetToken();
-        if (!std::holds_alternative<Tokenizer::Slash>(tok)) {
-            throw std::logic_error("Slash should follow after number");
-        }
+    }
+    tok = tokenizer->GetToken();
+    if (!std::holds_alternative<Tokenizer::Slash>(tok)) {
+        return fv;
     }
     tokenizer->Next();
-
-    // Parse vn
     tok = tokenizer->GetToken();
+    // Parse vn
     if (!std::holds_alternative<Tokenizer::Double>(tok)) {
+        // FIXME: Change error message.
         throw std::logic_error("Triangle vertex should contain constant in the ending");
     }
     fv.vn = std::get<Tokenizer::Double>(tok).val;

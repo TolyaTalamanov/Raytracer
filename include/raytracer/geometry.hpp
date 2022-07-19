@@ -94,6 +94,8 @@ struct Material {
     double Ni    = 1;
 
     std::optional<Image> map_Kd;
+    std::optional<Image> map_Ka;
+    std::optional<Image> map_bump;
 };
 
 struct HitInfo {
@@ -101,7 +103,8 @@ struct HitInfo {
     Vec3f  normal;
     double distance;
 
-    std::optional<RGB> texture_Kd;
+    std::optional<Vec3f> texture_Kd;
+    std::optional<Vec3f> texture_Ka;
 };
 
 class Object {
