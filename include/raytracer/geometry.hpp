@@ -8,6 +8,7 @@
 
 #include "datatypes.hpp"
 #include "options.hpp"
+#include "image.hpp"
 
 // NB: http://paulbourke.net/dataformats/obj/
 
@@ -91,12 +92,16 @@ struct Material {
     double Ns    = 0;
     int    illum = 0;
     double Ni    = 1;
+
+    std::optional<Image> map_Kd;
 };
 
 struct HitInfo {
     Vec3f  position;
     Vec3f  normal;
     double distance;
+
+    std::optional<RGB> texture_Kd;
 };
 
 class Object {
@@ -110,7 +115,7 @@ public:
     virtual std::optional<HitInfo> intersect(const Ray& ray) = 0;
     const Material& GetMaterial() const;
 
-private:
+protected:
     Material material;
 };
 using Objects = std::vector<Object::Ptr>;

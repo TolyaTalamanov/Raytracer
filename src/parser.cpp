@@ -6,6 +6,7 @@
 #include <raytracer/parser.hpp>
 #include <raytracer/builder.hpp>
 #include <raytracer/tokenizer.hpp>
+#include <raytracer/image.hpp>
 
 template <typename T, size_t N>
 std::array<T, N> ParseConstants(Tokenizer* tokenizer) {
@@ -112,7 +113,8 @@ static VertexNormal ParseVertexNormal(Tokenizer* t) {
 }
 
 static void ParseNewmtl(Tokenizer* tokenizer,
-                        std::unordered_map<std::string, Material>& materials) {
+                        std::unordered_map<std::string, Material>& materials,
+                        const std::string& dir) {
     auto tok = tokenizer->GetToken();
     if (!std::holds_alternative<Tokenizer::String>(tok) ||
          std::get<Tokenizer::String>(tok).str != "newmtl") {
@@ -171,6 +173,11 @@ static void ParseNewmtl(Tokenizer* tokenizer,
             auto Tr = ParseConstants<double, 1>(tokenizer);
             mtl.Tr = Tr[0];
             mtl.d = 1 - mtl.Tr;
+        } else if (param == "map_Kd") {
+            tok = tokenizer->GetToken();
+            assert(std::holds_alternative<Tokenizer::String>(tok));
+            mtl.map_Kd = std::make_optional(Image(dir + "/" + std::get<Tokenizer::String>(tok).str));
+            tokenizer->Next();
         } else {
             throw std::logic_error("Unsupported newmtl parameter : " + param);
         }
@@ -191,8 +198,9 @@ static void ParseMtlFile(const std::string& filename,
                          std::unordered_map<std::string, Material>& materials) {
     std::ifstream stream(filename);
     Tokenizer tokenizer(&stream);
+    const auto dir = filename.substr(0, filename.find_last_of("/\\"));
     while (!tokenizer.IsEnd()) {
-        ParseNewmtl(&tokenizer, materials);
+        ParseNewmtl(&tokenizer, materials, dir);
     }
 }
 

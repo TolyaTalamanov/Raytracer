@@ -1,4 +1,5 @@
 #include <raytracer/geometry.hpp>
+#include <iostream>
 
 Vec3f Ray::at(double t) const {
     return orig + dir * t;
@@ -144,7 +145,26 @@ std::optional<HitInfo> Triangle::intersect(const Ray& ray) {
              w * v2n.normalize()).normalize();
     }
 
-    return HitInfo{P, N, t};
+    HitInfo hit{P, N, t};
+    if (texture_vertices) {
+        if (material.map_Kd) {
+            const auto bary = CalculateBarycentric(v0, v1, v2, P);
+            const auto& vts = texture_vertices.value();
+            Vec3f vt0{vts[0].u, vts[0].v, vts[0].w};
+            Vec3f vt1{vts[1].u, vts[1].v, vts[1].w};
+            Vec3f vt2{vts[2].u, vts[2].v, vts[2].w};
+            const auto affine = CalculateAffine(vt0, vt1, vt2, bary);
+            const auto& txt = material.map_Kd.value();
+
+            auto x = static_cast<int>(affine.x * txt.Width());
+            auto y = static_cast<int>(affine.y * txt.Height());
+
+            auto pixel = txt.GetPixel(x, y);
+            hit.texture_Kd = pixel;
+        }
+    }
+
+    return hit;
 }
 
 static double clamp(double lower, double upper, double value) {
@@ -278,6 +298,10 @@ Vec3f Trace(const Ray&     ray,
         diffuse  += light.intensity * std::max(0.0, newN.dot(vL));
         specular += light.intensity * std::pow(std::max(0.0, vR.dot(vE)), material.Ns);
     }
+
     Ibase += material.Ka + material.Ke + (material.Kd * diffuse) + (material.Ks * specular);
+
+    auto v = info.texture_Kd.value();
+    return {v.r / 255.0, v.g / 255.0, v.b / 255.0};
     return Ibase + Icomp;
 }
