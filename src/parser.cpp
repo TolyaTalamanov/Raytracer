@@ -112,6 +112,13 @@ static VertexNormal ParseVertexNormal(Tokenizer* t) {
     return vn;
 }
 
+static Image ParseImageFile(Tokenizer* tokenizer, const std::string& dir) {
+    auto tok = tokenizer->GetToken();
+    assert(std::holds_alternative<Tokenizer::String>(tok));
+    tokenizer->Next();
+    return Image(dir + "/" + std::get<Tokenizer::String>(tok).str);
+}
+
 static void ParseNewmtl(Tokenizer* tokenizer,
                         std::unordered_map<std::string, Material>& materials,
                         const std::string& dir) {
@@ -174,20 +181,11 @@ static void ParseNewmtl(Tokenizer* tokenizer,
             mtl.Tr = Tr[0];
             mtl.d = 1 - mtl.Tr;
         } else if (param == "map_Kd") {
-            tok = tokenizer->GetToken();
-            assert(std::holds_alternative<Tokenizer::String>(tok));
-            mtl.map_Kd = std::make_optional(Image(dir + "/" + std::get<Tokenizer::String>(tok).str));
-            tokenizer->Next();
+            mtl.map_Kd = std::make_optional(ParseImageFile(tokenizer, dir));
         } else if (param == "map_Ka") {
-            tok = tokenizer->GetToken();
-            assert(std::holds_alternative<Tokenizer::String>(tok));
-            mtl.map_Ka = std::make_optional(Image(dir + "/" + std::get<Tokenizer::String>(tok).str));
-            tokenizer->Next();
+            mtl.map_Ka = std::make_optional(ParseImageFile(tokenizer, dir));
         } else if (param == "map_bump") {
-            tok = tokenizer->GetToken();
-            assert(std::holds_alternative<Tokenizer::String>(tok));
-            mtl.map_bump = std::make_optional(Image(dir + "/" + std::get<Tokenizer::String>(tok).str));
-            tokenizer->Next();
+            mtl.map_bump = std::make_optional(ParseImageFile(tokenizer, dir));
         } else {
             throw std::logic_error("Unsupported newmtl parameter : " + param);
         }
