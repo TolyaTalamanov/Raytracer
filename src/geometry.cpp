@@ -134,7 +134,7 @@ std::optional<HitInfo> Triangle::intersect(const Ray& ray) {
     Vec3f N = v0v1.cross(v0v2).normalize();
 
     w = (1 - u - v);
-    if (vertex_normals) {
+    if (vertex_normals && !material.map_bump) {
         const auto& normals = vertex_normals.value();
         Vec3f v0n{normals[0].i, normals[0].j, normals[0].k};
         Vec3f v1n{normals[1].i, normals[1].j, normals[1].k};
@@ -154,6 +154,12 @@ std::optional<HitInfo> Triangle::intersect(const Ray& ray) {
         Vec3f vt2{vts[2].u, vts[2].v, vts[2].w};
         const auto affine = CalculateAffine(vt0, vt1, vt2, bary);
 
+        auto reverse_gamma = [](const Vec3f v) {
+            return Vec3f{std::pow(v.x, 2.2),
+                         std::pow(v.y, 2.2),
+                         std::pow(v.z, 2.2)};
+        };
+
         auto extract_texture_pixel = [](const Image& texture,
                                         const Vec3f& affine) {
             const auto W = texture.Width();
@@ -161,18 +167,51 @@ std::optional<HitInfo> Triangle::intersect(const Ray& ray) {
             const auto x = static_cast<int>(affine.x * W);
             const auto y = static_cast<int>(affine.y * H);
             const auto pixel = texture.GetPixel(H-y-1, x);
-            return Vec3f{std::pow(pixel.r / 255.0, 2.2),
-                         std::pow(pixel.g / 255.0, 2.2),
-                         std::pow(pixel.b / 255.0, 2.2)};
+            return Vec3f{pixel.r / 255.0,
+                         pixel.g / 255.0,
+                         pixel.b / 255.0};
         };
 
         if (material.map_Kd) {
             hit.texture_Kd =
-                extract_texture_pixel(material.map_Kd.value(), affine);
+                reverse_gamma(extract_texture_pixel(material.map_Kd.value(), affine));
         }
+
         if (material.map_Ka) {
-            hit.texture_Kd =
-                extract_texture_pixel(material.map_Kd.value(), affine);
+            hit.texture_Ka =
+                reverse_gamma(extract_texture_pixel(material.map_Ka.value(), affine));
+        }
+
+        if (material.map_bump) {
+            auto delta_uv1 = vt1 - vt0;
+            auto delta_uv2 = vt2 - vt0;
+            float f = 1.0f / (delta_uv1.x * delta_uv2.y - delta_uv2.x * delta_uv1.y);
+            auto edge1 = v0v1;
+            auto edge2 = v0v2;
+
+            Vec3f tangent;
+            tangent.x = f * (delta_uv2.y * edge1.x - delta_uv1.y * edge2.x);
+            tangent.y = f * (delta_uv2.y * edge1.y - delta_uv1.y * edge2.y);
+            tangent.z = f * (delta_uv2.y * edge1.z - delta_uv1.y * edge2.z);
+            tangent = tangent.normalize();
+
+            Vec3f bitanget;
+            bitanget.x = f * (-delta_uv2.x * edge1.x + delta_uv1.x * edge2.x);
+            bitanget.y = f * (-delta_uv2.x * edge1.y + delta_uv1.x * edge2.y);
+            bitanget.z = f * (-delta_uv2.x * edge1.z + delta_uv1.x * edge2.z);
+            bitanget = bitanget.normalize();
+
+            auto bump_map = extract_texture_pixel(material.map_bump.value(), affine);
+            bump_map = ((bump_map * 2.0) - 1.0).normalize();
+
+            // NB: Change normal direction to make it look to camera.
+            auto N = hit.normal;
+            if (ray.dir.dot(N) > 0) {
+                N = N * -1;
+            }
+
+            Vec3f bump_normal = (bump_map.x  * tangent) + (bump_map.y * bitanget) + (bump_map.z * N);
+            hit.normal = bump_normal.normalize();
         }
     }
 
@@ -249,7 +288,6 @@ Vec3f Trace(const Ray&     ray,
     Vec3f Icomp{0.0, 0.0, 0.0};
 
     Vec3f newN = info.normal;
-
     if (ray.dir.dot(newN) > 0) {
         newN = newN * -1;
     }
@@ -267,7 +305,7 @@ Vec3f Trace(const Ray&     ray,
     }
 
     if (material.illum > 2) {
-        double bias = 0.001;
+        double bias = 0.0001;
         if (outside) {
             Vec3f refldir = Reflect(ray.dir, newN).normalize();
             Vec3f vR = Reflect(-1 * refldir, newN);
@@ -275,7 +313,7 @@ Vec3f Trace(const Ray&     ray,
             Vec3f shiftedP = info.position + bias * newN;
             Vec3f reflc = Trace(Ray{shiftedP, refldir}, scene, options, depth + 1);
 
-            auto refldiffuse = reflc * std::max(0.0, newN.dot(refldir));
+            auto refldiffuse  = reflc * std::max(0.0, newN.dot(refldir));
             auto reflspecular = reflc * std::pow(std::max(0.0, vR.dot(vE)), material.Ns);
 
             Icomp += (Kd * refldiffuse) + (material.Ks * reflspecular);

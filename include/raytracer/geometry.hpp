@@ -105,6 +105,7 @@ struct HitInfo {
 
     std::optional<Vec3f> texture_Kd;
     std::optional<Vec3f> texture_Ka;
+    std::optional<Vec3f> texture_bump;
 };
 
 class Object {

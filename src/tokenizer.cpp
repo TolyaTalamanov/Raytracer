@@ -47,7 +47,13 @@ Tokenizer::Token Tokenizer::GetToken() {
 }
 
 void Tokenizer::NextLine() {
-    while (_in->peek() != '\n') {
+    while (true) {
+        auto c = _in->peek();
+        if (c == '\n') {
+            break;
+        } else if (c == EOF) {
+            return;
+        }
         _in->get();
     }
     SkipIgnored();
