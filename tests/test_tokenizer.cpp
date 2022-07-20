@@ -112,3 +112,12 @@ TEST(TokenizerTests, NoThrowGetTokenAfterEnd) {
     ASSERT_NO_THROW(t.GetToken());
     EXPECT_TRUE(t.IsEnd());
 }
+
+TEST(TokenizerTests, NextLineBeforeEnd) {
+    std::stringstream ss{"#foo"};
+    Tokenizer t(&ss);
+
+    t.NextLine();
+
+    EXPECT_TRUE(t.IsEnd());
+}
