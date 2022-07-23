@@ -121,3 +121,10 @@ TEST(TokenizerTests, NextLineBeforeEnd) {
 
     EXPECT_TRUE(t.IsEnd());
 }
+
+TEST(TokenizerTests, ParseStringStartsWithNumber) {
+    std::stringstream ss{"1212_foo"};
+    Tokenizer t(&ss);
+
+    EXPECT_EQ("1212_foo", std::get<Tokenizer::String>(t.GetToken()).str);
+}

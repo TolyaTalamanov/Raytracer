@@ -1,5 +1,24 @@
 #include <raytracer/geometry.hpp>
-#include <iostream>
+
+Scene::Scene(Objects&&                      objects,
+             Lights&&                       lights,
+             std::vector<GeometricVertex>&& geom_vertices)
+    : _objects(std::move(objects)),
+      _lights(std::move(lights)),
+      _geom_vertices(std::move(geom_vertices)) {
+}
+
+const Objects& Scene::GetObjects() const {
+    return _objects;
+}
+
+const Lights& Scene::GetLights()  const {
+    return _lights;
+}
+
+const std::vector<GeometricVertex>& Scene::GetGeometricVertices() const {
+    return _geom_vertices;
+}
 
 Vec3f Ray::at(double t) const {
     return orig + dir * t;
@@ -127,7 +146,8 @@ std::optional<HitInfo> Triangle::intersect(const Ray& ray) {
     double t = v0v2.dot(qvec) * invDet;
     auto P = ray.at(t);
 
-    if (t < 0) {
+    // FIXME: From where this nan appears ???
+    if (t < 0 || std::isnan(t)) {
         return {};
     }
 
@@ -262,7 +282,7 @@ Vec3f Trace(const Ray&     ray,
     HitInfo info;
     double distance = std::numeric_limits<double>::max();
 
-    for (auto&& obj : scene.objects) {
+    for (auto&& obj : scene.GetObjects()) {
         auto has_hit = obj->intersect(ray);
         if (!has_hit) {
             continue;
@@ -329,12 +349,12 @@ Vec3f Trace(const Ray&     ray,
         Icomp += refrc * Tr;
     }
 
-    for (auto&& light : scene.lights) {
+    for (auto&& light : scene.GetLights()) {
         Vec3f new_p = info.position + ((ray.orig - info.position).normalize() * 0.00001);
         Vec3f newp2light = (light.position - new_p).normalize();
 
         bool no_intersect = false;
-        for (const auto& obj : scene.objects) {
+        for (const auto& obj : scene.GetObjects()) {
             auto has_hit = obj->intersect(Ray{new_p, newp2light});
             if (!has_hit) {
                 continue;

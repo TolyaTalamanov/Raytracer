@@ -155,9 +155,20 @@ private:
     std::optional<ExplicitNormals> has_normals;
 };
 
-struct Scene {
-    Objects objects;
-    Lights  lights;
+class Scene {
+public:
+    Scene(Objects&&                     eobjects,
+          Lights&&                       lights,
+          std::vector<GeometricVertex>&& geom_vertices);
+
+    const Objects&                      GetObjects()           const;
+    const Lights&                       GetLights()            const;
+    const std::vector<GeometricVertex>& GetGeometricVertices() const;
+
+private:
+    Objects                      _objects;
+    Lights                       _lights;
+    std::vector<GeometricVertex> _geom_vertices;
 };
 
 Vec3f Refract(const Vec3f& I, const Vec3f& N, double ior);

@@ -35,6 +35,7 @@ set(SRC_FILES
 
 set(Raytracer_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/include/")
 add_library(${PROJECT_NAME} SHARED ${SRC_FILES})
+
 # Set public API
 target_include_directories(${PROJECT_NAME}
                            PUBLIC ${Raytracer_INCLUDE_DIR}
@@ -42,7 +43,13 @@ target_include_directories(${PROJECT_NAME}
 # Add dependencies
 find_package(PNG REQUIRED)
 find_package(JPEG REQUIRED)
-target_link_libraries(${PROJECT_NAME} ${PNG_LIBRARY} ${JPEG_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} PRIVATE ${PNG_LIBRARY} ${JPEG_LIBRARIES})
+
+find_package(OpenMP)
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(${PROJECT_NAME} PRIVATE OpenMP::OpenMP_CXX)
+endif()
+
 
 ########################################
 # Add thirdparty
