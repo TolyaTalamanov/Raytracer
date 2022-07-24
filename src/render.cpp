@@ -45,7 +45,8 @@ static void postprocessing(Matf& mat) {
     }
 }
 
-Image Render(const std::string& filename, const CameraOptions& camera_options,
+Image Render(const Scene& scene,
+             const CameraOptions& camera_options,
              const RenderOptions& render_options) {
     int width = camera_options.screen_width;
     int height = camera_options.screen_height;
@@ -64,8 +65,6 @@ Image Render(const std::string& filename, const CameraOptions& camera_options,
     Image img(width, height);
     Matf  mat(width, height);
 
-    const auto scene = Parse(filename);
-
     double scale = std::tan(fov * 0.5);
     double ratio = width / static_cast<double>(height);
 
@@ -73,6 +72,7 @@ Image Render(const std::string& filename, const CameraOptions& camera_options,
     Vec3f right = tmp.cross(forward).normalize();
     Vec3f up = forward.cross(right).normalize();
 
+#pragma omp parallel for
     for (int j = 0; j < height; ++j) {
         for (int i = 0; i < width; ++i) {
             // FIXME: Should it be without static_cast ???
@@ -111,4 +111,10 @@ Image Render(const std::string& filename, const CameraOptions& camera_options,
     }
 
     return img;
+}
+
+Image Render(const std::string& filename, const CameraOptions& camera_options,
+             const RenderOptions& render_options) {
+    const auto scene = Parse(filename);
+    return Render(Parse(filename), camera_options, render_options);
 }

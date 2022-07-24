@@ -1,5 +1,6 @@
 #include <unordered_set>
 #include <unordered_map>
+#include <iostream>
 
 #include <cassert>
 
@@ -186,6 +187,9 @@ static void ParseNewmtl(Tokenizer* tokenizer,
             mtl.map_Ka = std::make_optional(ParseImageFile(tokenizer, dir));
         } else if (param == "map_bump") {
             mtl.map_bump = std::make_optional(ParseImageFile(tokenizer, dir));
+        } else if (param == "bump") {
+            std::cout << "Ignore bump parameter in mtl file" << std::endl;
+            (void)ParseImageFile(tokenizer, dir);
         } else {
             throw std::logic_error("Unsupported newmtl parameter : " + param);
         }
@@ -312,9 +316,10 @@ Scene Parse(std::istream* stream, const std::string& mtldir) {
                 throw std::logic_error("Next token after usemtl should be Tokenizer::String");
             }
 
-            auto it = materials.find(std::get<Tokenizer::String>(tok).str);
+            const auto& mat_name = std::get<Tokenizer::String>(tok).str;
+            auto it = materials.find(mat_name);
             if (it == materials.end()) {
-                throw std::logic_error("Failed to find material with name: " + it->first);
+                throw std::logic_error("Failed to find material with name: " + mat_name);
             }
             builder.UseMaterial(it->second);
         } else if (keyword == "S") {

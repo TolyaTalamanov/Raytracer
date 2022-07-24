@@ -38,16 +38,11 @@ SceneBuilder& SceneBuilder::Add(const SphereElement& s) {
 }
 
 SceneBuilder& SceneBuilder::Add(const FaceElement& f) {
-    if (f.vertices.size() != 3u && f.vertices.size() != 4u) {
-        throw std::logic_error("Only 3 or 4 vertex face elements are supported!");
-    }
-
     std::vector<int> indices;
     for (int i = 0; i < f.vertices.size(); ++i) {
         indices.push_back(GetNormalizedIndex(f.vertices[i].v, _state->geom_vertices.size()));
     }
 
-    // FIXME: 2 iteration maximum, reorganize this loop.
     for (int i = 0; i < f.vertices.size()-2; ++i) {
         std::array<GeometricVertex, 3> v = {_state->geom_vertices[indices[0  ]],
                                             _state->geom_vertices[indices[i+1]],
@@ -76,7 +71,9 @@ SceneBuilder& SceneBuilder::Add(const FaceElement& f) {
 }
 
 Scene SceneBuilder::Finalize() {
-    Scene scene{std::move(_state->objects), std::move(_state->lights)};
+    Scene scene{std::move(_state->objects),
+                std::move(_state->lights),
+                std::move(_state->geom_vertices)};
     _state.reset(new State{});
     return scene;
 }
