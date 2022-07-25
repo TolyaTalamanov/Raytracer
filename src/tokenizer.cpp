@@ -29,9 +29,35 @@ Tokenizer::Token Tokenizer::GetToken() {
     if (c == '/') {
         _lasttok.reset(new Tokenizer::Token{Slash{}});
         // NB: Move cursor to the next symbol
-        _in->get();
+        (void)_in->get();
     } else if (std::isdigit(c) || c == '-') {
-        _lasttok.reset(new Tokenizer::Token{Double{ParseDouble()}});
+        // NB: Move cursor to the next symbol
+        (void)_in->get();
+
+        std::string accum;
+        accum += c;
+        bool met_dot    = false;
+        bool not_number = false;
+        while (true) {
+            auto ch = _in->peek();
+            if (ch == '/' || ch == '#' || std::isspace(ch) || ch == EOF) {
+                break;
+            }
+            if (!std::isdigit(ch)) {
+                if (ch == '.' && !met_dot) {
+                    met_dot = true;
+                } else {
+                    not_number = true;
+                }
+            }
+            accum += ch;
+            _in->get();
+        }
+        if (not_number) {
+            _lasttok.reset(new Tokenizer::Token{String{accum}});
+        } else {
+            _lasttok.reset(new Tokenizer::Token{Double{std::stod(accum)}});
+        }
     } else if (std::isalpha(c)) {
         auto word = ParseString();
         _lasttok.reset(new Tokenizer::Token{String{word}});
