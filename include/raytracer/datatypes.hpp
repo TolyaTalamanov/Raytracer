@@ -63,7 +63,7 @@ inline Vec3f operator-(Vec3f rhs, double val) {
 };
 
 inline std::ostream& operator<<(std::ostream& os, Vec3f vec) {
-    os << "[ " << vec.x << " " << vec.y << " " << vec.z << " ]" << std::endl;
+    os << "[ " << vec.x << " " << vec.y << " " << vec.z << " ]";
     return os;
 }
 

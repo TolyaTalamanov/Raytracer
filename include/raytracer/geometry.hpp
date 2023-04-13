@@ -157,9 +157,11 @@ private:
 
 class Scene {
 public:
-    Scene(Objects&&                     eobjects,
+    Scene(Objects&&                      objects,
           Lights&&                       lights,
           std::vector<GeometricVertex>&& geom_vertices);
+
+    void AddLight(Light &&);
 
     const Objects&                      GetObjects()           const;
     const Lights&                       GetLights()            const;

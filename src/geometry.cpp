@@ -20,6 +20,10 @@ const std::vector<GeometricVertex>& Scene::GetGeometricVertices() const {
     return _geom_vertices;
 }
 
+void Scene::AddLight(Light &&light) {
+    _lights.push_back(std::move(light));
+}
+
 Vec3f Ray::at(double t) const {
     return orig + dir * t;
 }
