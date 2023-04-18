@@ -6,6 +6,8 @@ Simple C++ Raytracer parses [Wavefront](http://paulbourke.net/dataformats/obj/) 
 * Reflection / Refraction
 * Textures
 
+![Example](https://github.com/TolyaTalamanov/Raytracer/blob/main/textures/cat-cube/cat-result.png)
+
 ## How to build
 1. Clone the project with submodules
 ```
